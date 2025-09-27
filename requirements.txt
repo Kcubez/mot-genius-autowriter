@@ -1,0 +1,12 @@
+Flask
+requests
+Flask-SQLAlchemy
+Flask-Login
+gunicorn
+python-dotenv
+google-generativeai
+Pillow
+psycopg2-binary
+Flask-WTF
+WTForms
+Flask-Bcrypt

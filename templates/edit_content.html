@@ -1,0 +1,89 @@
+{% extends "layout.html" %} 
+{% block title %}Edit Content - MOT{% endblock %} 
+{% block content %}
+<div class="min-h-screen py-8">
+  <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold text-slate-800">Edit Content</h1>
+      <p class="text-slate-600 mt-2">Update your content</p>
+    </div>
+    
+    <form method="POST" class="space-y-6">
+      <div>
+        <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+        <input type="text" name="title" id="title" value="{{ content.title }}" required
+               class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+      </div>
+      
+      <div>
+        <label for="content" class="block text-sm font-medium text-gray-700 mb-2">Content</label>
+        <textarea name="content" id="content" rows="10" required
+                  class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">{{ content.content }}</textarea>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="purpose" class="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
+          <select name="purpose" id="purpose" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="ရောင်းရန်/ကြေငြာရန်" {{ 'selected' if content.purpose == 'ရောင်းရန်/ကြေငြာရန်' }}>ရောင်းရန်/ကြေငြာရန် (To Sell/Advertise)</option>
+            <option value="အသိပညာပေးရန်" {{ 'selected' if content.purpose == 'အသိပညာပေးရန်' }}>အသိပညာပေးရန် (To Educate)</option>
+            <option value="ဖျော်ဖြေရန်" {{ 'selected' if content.purpose == 'ဖျော်ဖြေရန်' }}>ဖျော်ဖြေရန် (To Entertain)</option>
+            <option value="သတင်းပေးရန်" {{ 'selected' if content.purpose == 'သတင်းပေးရန်' }}>သတင်းပေးရန် (To Inform)</option>
+            <option value="လှုံ့ဆော်ရန်" {{ 'selected' if content.purpose == 'လှုံ့ဆော်ရန်' }}>လှုံ့ဆော်ရန် (To Inspire)</option>
+          </select>
+        </div>
+        
+        <div>
+          <label for="writing_style" class="block text-sm font-medium text-gray-700 mb-2">Writing Style</label>
+          <select name="writing_style" id="writing_style" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="ဖော်ရွေသော" {{ 'selected' if content.writing_style == 'ဖော်ရွေသော' }}>ဖော်ရွေသော (Friendly)</option>
+            <option value="တရားဝင်" {{ 'selected' if content.writing_style == 'တရားဝင်' }}>တရားဝင် (Formal)</option>
+            <option value="ဟာသ" {{ 'selected' if content.writing_style == 'ဟာသ' }}>ဟာသ (Humorous)</option>
+            <option value="ယုံကြည်မှုရှိသော" {{ 'selected' if content.writing_style == 'ယုံကြည်မှုရှိသော' }}>ယုံကြည်မှုရှိသော (Confident)</option>
+            <option value="စိတ်အားထက်သန်သော" {{ 'selected' if content.writing_style == 'စိတ်အားထက်သန်သော' }}>စိတ်အားထက်သန်သော (Enthusiastic)</option>
+          </select>
+        </div>
+      </div>
+      
+      <div>
+        <label for="audience" class="block text-sm font-medium text-gray-700 mb-2">Audience</label>
+        <select name="audience" id="audience" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="လူငယ်များ" {{ 'selected' if content.audience == 'လူငယ်များ' }}>လူငယ်များ (Young People)</option>
+          <option value="သက်လတ်ပိုင်း" {{ 'selected' if content.audience == 'သက်လတ်ပိုင်း' }}>သက်လတ်ပိုင်း (Adults)</option>
+          <option value="ကျွမ်းကျင်ပညာရှင်များ" {{ 'selected' if content.audience == 'ကျွမ်းကျင်ပညာရှင်များ' }}>ကျွမ်းကျင်ပညာရှင်များ (Professionals)</option>
+          <option value="မိဘများ" {{ 'selected' if content.audience == 'မိဘများ' }}>မိဘများ (Parents)</option>
+          <option value="ကျောင်းသားများ" {{ 'selected' if content.audience == 'ကျောင်းသားများ' }}>ကျောင်းသားများ (Students)</option>
+        </select>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="keywords" class="block text-sm font-medium text-gray-700 mb-2">Keywords</label>
+          <input type="text" name="keywords" id="keywords" value="{{ content.keywords or '' }}"
+                 class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        
+        <div>
+          <label for="hashtags" class="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+          <input type="text" name="hashtags" id="hashtags" value="{{ content.hashtags or '' }}"
+                 class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+      </div>
+      
+      <div class="flex space-x-4">
+        <button type="submit" class="flex-1 bg-indigo-600 text-white py-3 rounded-md hover:bg-indigo-700 font-medium transition-colors">
+          Update Content
+        </button>
+        <a
+          href="{{ url_for('view_content', content_id=content.id) }}"
+          class="flex-1 bg-gray-500 text-white py-3 rounded-md hover:bg-gray-600 font-medium transition-colors text-center"
+        >
+          Cancel
+        </a>
+      </div>
+    </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

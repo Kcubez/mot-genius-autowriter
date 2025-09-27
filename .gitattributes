@@ -1,0 +1,13 @@
+# HTML templates with Jinja2 syntax
+templates/*.html linguist-language=HTML
+*.html linguist-language=HTML
+
+# JavaScript files
+static/js/*.js linguist-language=JavaScript
+*.js linguist-language=JavaScript
+
+# Python files
+*.py linguist-language=Python
+
+# JSON files
+*.json linguist-language=JSON

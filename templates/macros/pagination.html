@@ -1,0 +1,176 @@
+{% macro render_pagination(pagination, endpoint, search='', filter_status='') %}
+  {% if pagination.pages > 1 %}
+  <div class="pagination-wrapper">
+    <!-- Mobile Pagination (Small Screens) -->
+    <div class="pagination-mobile">
+      <div class="pagination-info-mobile">
+        {{ ((pagination.page - 1) * pagination.per_page + 1) }}-{{ (pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total) }} of {{ pagination.total }} items
+      </div>
+      
+      <div class="pagination-controls-mobile">
+        <!-- First Page -->
+        {% if pagination.page > 2 %}
+        <a href="{{ url_for(endpoint, page=1, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-first">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+          </svg>
+        </a>
+        {% endif %}
+        
+        <!-- Previous -->
+        {% if pagination.has_prev %}
+        <a href="{{ url_for(endpoint, page=pagination.prev_num, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-prev">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </a>
+        {% else %}
+        <span class="pagination-btn pagination-prev disabled">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </span>
+        {% endif %}
+
+        <!-- Current Page -->
+        <span class="pagination-current">{{ pagination.page }}</span>
+
+        <!-- Next -->
+        {% if pagination.has_next %}
+        <a href="{{ url_for(endpoint, page=pagination.next_num, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-next">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+        {% else %}
+        <span class="pagination-btn pagination-next disabled">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </span>
+        {% endif %}
+        
+        <!-- Last Page -->
+        {% if pagination.page < pagination.pages - 1 %}
+        <a href="{{ url_for(endpoint, page=pagination.pages, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-last">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+          </svg>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Desktop Pagination (Large Screens) -->
+    <div class="pagination-desktop">
+      <div class="pagination-info-desktop">
+        {{ ((pagination.page - 1) * pagination.per_page + 1) }}-{{ (pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total) }} of {{ pagination.total }} items
+      </div>
+      
+      <div class="pagination-controls-desktop">
+        <!-- First Page -->
+        {% if pagination.page > 2 %}
+        <a href="{{ url_for(endpoint, page=1, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-first">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+          </svg>
+        </a>
+        {% endif %}
+        
+        <!-- Previous -->
+        {% if pagination.has_prev %}
+        <a href="{{ url_for(endpoint, page=pagination.prev_num, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-prev">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </a>
+        {% else %}
+        <span class="pagination-btn pagination-prev disabled">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </span>
+        {% endif %}
+
+        <!-- Page Numbers -->
+        {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if page_num %}
+            {% if page_num != pagination.page %}
+              <a href="{{ url_for(endpoint, page=page_num, search=search, filter=filter_status) }}" 
+                 class="pagination-number">
+                {{ page_num }}
+              </a>
+            {% else %}
+              <span class="pagination-number active">
+                {{ page_num }}
+              </span>
+            {% endif %}
+          {% else %}
+            <span class="pagination-ellipsis">…</span>
+          {% endif %}
+        {% endfor %}
+
+        <!-- Next -->
+        {% if pagination.has_next %}
+        <a href="{{ url_for(endpoint, page=pagination.next_num, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-next">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </a>
+        {% else %}
+        <span class="pagination-btn pagination-next disabled">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </span>
+        {% endif %}
+        
+        <!-- Last Page -->
+        {% if pagination.page < pagination.pages - 1 %}
+        <a href="{{ url_for(endpoint, page=pagination.pages, search=search, filter=filter_status) }}" 
+           class="pagination-btn pagination-last">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+          </svg>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro render_search_controls(search_term='', filter_value='', show_filter=true) %}
+<div class="content-controls">
+  <form method="GET" id="search-form" class="flex gap-4 items-center">
+    <div class="search-box">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <input type="text" 
+             name="search"
+             placeholder="Search..." 
+             value="{{ search_term }}" 
+             id="search-input"
+             onkeyup="handleSearch(event)">
+    </div>
+    
+    {% if show_filter %}
+    <div class="filter-dropdown">
+      <select name="filter" id="filter-select" onchange="handleFilter(event)">
+        <option value="">All Items</option>
+        <option value="active" {{ 'selected' if filter_value == 'active' }}>Active</option>
+        <option value="inactive" {{ 'selected' if filter_value == 'inactive' }}>Inactive</option>
+      </select>
+    </div>
+    {% endif %}
+  </form>
+</div>
+{% endmacro %}
