@@ -1,24 +1,25 @@
-{% extends "layout.html" %} 
-{% block title %}Dashboard - MOT{% endblock %} 
-
-{% block head %}
+{% extends "layout.html" %} {% block title %}Dashboard - MOT{% endblock %} {% block head %}
 <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <div class="min-h-screen py-8">
   <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
     <!-- Welcome Section -->
     <div class="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+      <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0"
+      >
         <div>
-          <h1 class="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+          <h1
+            class="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent"
+          >
             Welcome, {{ current_user.username }}!
           </h1>
           <p class="text-slate-600 mt-2 text-lg">Generate and manage your AI-powered content</p>
         </div>
         <div class="text-center md:text-right">
-          <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-xl shadow-lg">
+          <div
+            class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-xl shadow-lg"
+          >
             <p class="text-3xl font-bold">{{ total_contents }}</p>
             <p class="text-blue-100 text-sm">Total Contents</p>
           </div>
@@ -29,187 +30,370 @@
     <!-- Content Generation -->
     <div class="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
       <div class="flex items-center space-x-3 mb-6">
-        <div class="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        <div
+          class="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
           </svg>
         </div>
         <h2 class="text-2xl font-bold text-slate-900">AI Content Generator</h2>
       </div>
-    <div class="mb-4">
-      <label for="prompt" class="block text-sm font-medium text-gray-700 mb-2">Enter your prompt:</label>
-      <input
-        type="text"
-        id="prompt"
-        class="w-full p-2 border border-gray-300 rounded-md"
-        placeholder="e.g., Write a short post about AI"
-      />
-    </div>
-    <div class="mb-4">
-      <label for="image-upload" class="block text-sm font-medium text-gray-700 mb-2">Upload an image (Optional):</label>
-      <input
-        type="file"
-        id="image-upload"
-        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-        accept="image/*"
-      />
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-      <div>
-        <label for="purpose" class="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
-        <select id="purpose" class="w-full p-2 border border-gray-300 rounded-md">
-          <option>ရောင်းရန်/ကြေငြာရန် (To Sell/Advertise)</option>
-          <option>အသိပညာပေးရန် (To Educate)</option>
-          <option>ဖျော်ဖြေရန် (To Entertain)</option>
-          <option>သတင်းပေးရန် (To Inform)</option>
-          <option>လှုံ့ဆော်ရန် (To Inspire)</option>
-        </select>
-      </div>
-      <div>
-        <label for="writing-style" class="block text-sm font-medium text-gray-700 mb-2">Writing Style</label>
-        <select id="writing-style" class="w-full p-2 border border-gray-300 rounded-md">
-          <option>ဖော်ရွေသော (Friendly)</option>
-          <option>တရားဝင် (Formal)</option>
-          <option>ဟာသ (Humorous)</option>
-          <option>ယုံကြည်မှုရှိသော (Confident)</option>
-          <option>စိတ်အားထက်သန်သော (Enthusiastic)</option>
-        </select>
-      </div>
-      <div>
-        <label for="copywriting-model" class="block text-sm font-medium text-gray-700 mb-2">Copywriting Model</label>
-        <select id="copywriting-model" class="w-full p-2 border border-gray-300 rounded-md">
-          <option value="none">None (General)</option>
-          <option value="AIDA">AIDA (Attention, Interest, Desire, Action)</option>
-          <option value="PAS">PAS (Problem, Agitate, Solution)</option>
-          <option value="FAB">FAB (Features, Advantages, Benefits)</option>
-          <option value="4Ps">The 4 P's (Picture, Promise, Prove, Push)</option>
-          <option value="BAB">BAB (Before, After, Bridge)</option>
-        </select>
-      </div>
-      <div>
-        <label for="audience" class="block text-sm font-medium text-gray-700 mb-2">Audience</label>
-        <select id="audience" class="w-full p-2 border border-gray-300 rounded-md">
-          <option>လူငယ်များ (Young People)</option>
-          <option>သက်လတ်ပိုင်း (Adults)</option>
-          <option>ကျွမ်းကျင်ပညာရှင်များ (Professionals)</option>
-          <option>မိဘများ (Parents)</option>
-          <option>ကျောင်းသားများ (Students)</option>
-        </select>
-      </div>
-      <div>
-        <label for="word-count" class="block text-sm font-medium text-gray-700 mb-2">Word Count</label>
+      <div class="mb-4">
+        <label for="prompt" class="block text-sm font-medium text-gray-700 mb-2">Topic</label>
         <input
-          type="number"
-          id="word-count"
+          type="text"
+          id="prompt"
           class="w-full p-2 border border-gray-300 rounded-md"
-          placeholder="e.g., 250"
+          placeholder="ဒီနေရာတွင် content ၏ အဓိက အကြောင်းအရာကို ရေးပါ"
         />
       </div>
-    </div>
-    <div class="mb-4">
-      <label for="keywords" class="block text-sm font-medium text-gray-700 mb-2">Keywords</label>
-      <input
-        type="text"
-        id="keywords"
-        class="w-full p-2 border border-gray-300 rounded-md"
-        placeholder="Separate keywords with commas"
-      />
-    </div>
-    <div class="mb-4">
-      <label for="hashtags" class="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
-      <input
-        type="text"
-        id="hashtags"
-        class="w-full p-2 border border-gray-300 rounded-md"
-        placeholder="e.g., #AI #Marketing"
-      />
-    </div>
-
-    <button
-      id="generate-btn"
-      class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 mb-4 transition-colors flex items-center justify-center disabled:opacity-75"
-    >
-      <svg
-        class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden"
-        id="generate-spinner"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          class="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          stroke-width="4"
-        ></circle>
-        <path
-          class="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        ></path>
-      </svg>
-      <span id="generate-btn-text">Generate Content</span>
-    </button>
-    <div class="mt-4">
-      <label for="content-area" class="block text-sm font-medium text-gray-700 mb-2">Generated Content:</label>
-      <textarea
-        id="content-area"
-        rows="10"
-        class="w-full p-2 border border-gray-300 rounded-md"
-        placeholder="Generated content will appear here..."
-      ></textarea>
-    </div>
-    
-    <!-- Save Content Button -->
-    <div class="mt-4 flex space-x-4">
-      <button
-        id="save-content-btn"
-        class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
-        disabled
-      >
-        Save Content
-      </button>
-      <a
-        href="{{ url_for('content_history') }}"
-        class="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 transition-colors"
-      >
-        View My Contents
-      </a>
-    </div>
-  </div>
-
-  <!-- Recent Content -->
-  <div class="bg-white p-6 rounded-lg shadow-lg">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-2xl font-bold">Recent Content</h2>
-      <a href="{{ url_for('content_history') }}" class="text-sm text-indigo-600 hover:underline">View All</a>
-    </div>
-    {% if recent_contents %}
-    <div class="space-y-3">
-      {% for content in recent_contents %}
-      <div class="border-l-4 border-indigo-400 pl-4 py-2">
-        <div class="flex justify-between items-start">
-          <div>
-            <h3 class="font-medium text-gray-900">
-              <a href="{{ url_for('view_content', content_id=content.id) }}" class="hover:text-indigo-600">
-                {{ content.title }}
-              </a>
-            </h3>
-            <p class="text-sm text-gray-600 truncate">{{ content.content[:100] }}...</p>
-            <p class="text-xs text-gray-500">{{ content.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
-          </div>
-          <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-            {{ content.purpose or 'General' }}
-          </span>
+      <div class="mb-4">
+        <label for="image-upload" class="block text-sm font-medium text-gray-700 mb-2"
+          >Upload an image (Optional):</label
+        >
+        <input
+          type="file"
+          id="image-upload"
+          class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+          accept="image/*"
+        />
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label for="purpose" class="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
+          <input
+            type="text"
+            id="purpose"
+            class="w-full p-2 border border-gray-300 rounded-md"
+            placeholder="ဥပမာ - ပညာပေးရန်၊ Engagement ရရှိရန်၊ ရောင်းအားမြှင့်တင်ရန်"
+          />
+        </div>
+        <div>
+          <label for="audience" class="block text-sm font-medium text-gray-700 mb-2"
+            >Audience</label
+          >
+          <input
+            type="text"
+            id="audience"
+            class="w-full p-2 border border-gray-300 rounded-md"
+            placeholder="ဥပမာ - အသက် ၂၀ မှ ၃၀ ကြား လူငယ်တွေ"
+          />
+        </div>
+        <div>
+          <label for="copywriting-model" class="block text-sm font-medium text-gray-700 mb-2"
+            >Copywriting Model</label
+          >
+          <select id="copywriting-model" class="w-full p-2 border border-gray-300 rounded-md">
+            <option value="none">None (General)</option>
+            <option value="AIDA">AIDA (Attention, Interest, Desire, Action)</option>
+            <option value="PAS">PAS (Problem, Agitate, Solution)</option>
+            <option value="FAB">FAB (Features, Advantages, Benefits)</option>
+            <option value="4Ps">The 4 P's (Picture, Promise, Prove, Push)</option>
+            <option value="BAB">BAB (Before, After, Bridge)</option>
+          </select>
+        </div>
+        <div>
+          <label for="language" class="block text-sm font-medium text-gray-700 mb-2"
+            >Output Language</label
+          >
+          <select id="language" class="w-full p-2 border border-gray-300 rounded-md">
+            <option value="myanmar">မြန်မာ (Myanmar)</option>
+            <option value="english">English</option>
+          </select>
         </div>
       </div>
-      {% endfor %}
+      
+      <!-- Writing Style - Full Width -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2"
+          >Writing Style (အများဆုံး ၃ခု ရွေးချယ်နိုင်ပါသည်)</label
+        >
+        <div class="relative">
+          <div 
+            id="writing-style-dropdown" 
+            class="w-full p-2 border border-gray-300 rounded-md bg-white cursor-pointer flex justify-between items-center"
+          >
+            <span id="writing-style-display" class="text-gray-500">ရွေးချယ်ပါ...</span>
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+          <div 
+            id="writing-style-options" 
+            class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto"
+          >
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="friendly" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">ဖော်ရွေသော (Friendly)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="formal" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">တရားဝင် (Formal)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="humorous" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">ဟာသ (Humorous)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="confident" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">ယုံကြည်မှုရှိသော (Confident)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="enthusiastic" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">စိတ်အားထက်သန်သော (Enthusiastic)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="professional" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">ပရော်ဖက်ရှင်နယ် (Professional)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="conversational" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">စကားပြောပုံစံ (Conversational)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="narrative" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">ဇာတ်လမ်းပြောပုံစံ (Narrative)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="expository" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">အသိပေးရှင်းပြပုံစံ (Expository)</span>
+            </label>
+            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" name="writing-style" value="persuasive" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
+              <span class="text-sm">စည်းရုံးဆွဲဆောင်ပုံစံ (Persuasive)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Word Count - Full Width -->
+      <div class="mb-4">
+        <label for="word-count" class="block text-sm font-medium text-gray-700 mb-2"
+          >Word Count: <span id="word-count-value">300</span></label
+        >
+        <input
+          type="range"
+          id="word-count"
+          min="50"
+          max="1000"
+          value="300"
+          step="50"
+          class="w-full slider"
+        />
+        <style>
+          .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+          }
+          
+          .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          
+          .slider::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          
+          .slider::-webkit-slider-track {
+            height: 8px;
+            background: linear-gradient(to right, #3b82f6 0%, #3b82f6 var(--value, 30%), #e5e7eb var(--value, 30%), #e5e7eb 100%);
+            border-radius: 4px;
+          }
+          
+          .slider::-moz-range-track {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+          }
+          
+          .slider::-moz-range-progress {
+            height: 8px;
+            background: #3b82f6;
+            border-radius: 4px;
+          }
+        </style>
+      </div>
+      <div class="mb-4">
+        <label for="keywords" class="block text-sm font-medium text-gray-700 mb-2"
+          >Keywords (separate keywords with commas)</label
+        >
+        <input
+          type="text"
+          id="keywords"
+          class="w-full p-2 border border-gray-300 rounded-md"
+          placeholder="ဥပမာ - Digital Marketing မြန်မာ၊ အွန်လိုင်းစီးပွားရေး"
+        />
+      </div>
+      <div class="mb-4">
+        <label for="hashtags" class="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
+        <input
+          type="text"
+          id="hashtags"
+          class="w-full p-2 border border-gray-300 rounded-md"
+          placeholder="ဥပမာ - #DigitalMarketingMyanmar #OnlineBusinessTips"
+        />
+      </div>
+      <div class="mb-4">
+        <label for="cta" class="block text-sm font-medium text-gray-700 mb-2"
+          >Call to Action (CTA)</label
+        >
+        <input
+          type="text"
+          id="cta"
+          class="w-full p-2 border border-gray-300 rounded-md"
+          placeholder="ဥပမာ - ပိုမိုသိရှိလိုပါက page ကို message ပို့လိုက်ပါ၊ လူကြီးမင်းအမြင်ကို Comment မှာ ရေးခဲ့ပါ"
+        />
+      </div>
+      <div class="mb-4">
+        <label for="negative-constraints" class="block text-sm font-medium text-gray-700 mb-2"
+          >Negative Constraints</label
+        >
+        <textarea
+          id="negative-constraints"
+          rows="3"
+          class="w-full p-2 border border-gray-300 rounded-md"
+          placeholder="ဥပမာ - ဈေးနှုန်းအကြောင်းမထည့်ရ၊ ပြိုင်ဘက်ကို တိုက်ရိုက်မဖော်ပြရ၊ အပျက်သဘောဆောင်သော စကားလုံးများ မသုံးရ"
+        ></textarea>
+      </div>
+
+      <button
+        id="generate-btn"
+        class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 mb-4 transition-colors flex items-center justify-center disabled:opacity-75"
+      >
+        <svg
+          class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden"
+          id="generate-spinner"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <span id="generate-btn-text">Generate Content</span>
+      </button>
+      <div class="mt-4">
+        <label for="content-area" class="block text-sm font-medium text-gray-700 mb-2"
+          >Generated Content:</label
+        >
+        <textarea
+          id="content-area"
+          rows="10"
+          class="w-full p-2 border border-gray-300 rounded-md"
+          placeholder="Generated content will appear here..."
+        ></textarea>
+      </div>
+
+      <!-- Save Content Button -->
+      <div class="mt-4 flex space-x-4">
+        <button
+          id="save-content-btn"
+          class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
+          disabled
+        >
+          Save Content
+        </button>
+        <a
+          href="{{ url_for('content_history') }}"
+          class="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 transition-colors"
+        >
+          View My Contents
+        </a>
+      </div>
     </div>
-    {% else %}
-    <p class="text-gray-500 text-center py-8">No content created yet. Generate your first content above!</p>
-    {% endif %}
+
+    <!-- Recent Content -->
+    <div
+      class="bg-white/70 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-xl border border-white/20"
+    >
+      <div
+        class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-2 sm:space-y-0"
+      >
+        <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Recent Content</h2>
+        <a
+          href="{{ url_for('content_history') }}"
+          class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+          >View All</a
+        >
+      </div>
+      {% if recent_contents %}
+      <div class="space-y-3">
+        {% for content in recent_contents %}
+        <div class="border-l-4 border-indigo-400 pl-4 py-2">
+          <div
+            class="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-2 sm:space-y-0"
+          >
+            <div class="flex-1 min-w-0">
+              <h3 class="font-medium text-gray-900">
+                <a
+                  href="{{ url_for('view_content', content_id=content.id) }}"
+                  class="hover:text-indigo-600 block sm:inline"
+                >
+                  {{ content.title }}
+                </a>
+              </h3>
+              <p class="text-sm text-gray-600 break-words">{{ content.content[:100] }}...</p>
+              <p class="text-xs text-gray-500">
+                {{ content.created_at.strftime('%Y-%m-%d %H:%M') }}
+              </p>
+            </div>
+            <span
+              class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 self-start sm:ml-4"
+            >
+              {{ content.purpose or 'General' }}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-gray-500 text-center py-8">
+        No content created yet. Generate your first content above!
+      </p>
+      {% endif %}
+    </div>
   </div>
+  {% endblock %}
 </div>
-{% endblock %}

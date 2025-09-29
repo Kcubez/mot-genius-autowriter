@@ -1,21 +1,22 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory
-import os
-from dotenv import load_dotenv
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta, timezone
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, TextAreaField, SelectField, SubmitField
+from wtforms import StringField, PasswordField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Length
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+import os
+import logging
 import google.generativeai as genai
 import PIL.Image
-import logging
-
-# Load environment variables from .env file
-load_dotenv()
+from datetime import datetime
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 # Myanmar timezone (UTC+6:30)
+from datetime import timezone, timedelta
 MYANMAR_TZ = timezone(timedelta(hours=6, minutes=30))
 
 def get_myanmar_time():
@@ -53,8 +54,21 @@ else:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-UPLOAD_FOLDER = os.path.join(project_folder, 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Configure upload folder for different environments
+if os.getenv('VERCEL'):
+    # In Vercel serverless environment, use /tmp directory
+    UPLOAD_FOLDER = '/tmp/uploads'
+else:
+    # In local development, use uploads folder in project directory
+    UPLOAD_FOLDER = os.path.join(project_folder, 'uploads')
+
+# Create upload folder (only works in writable environments)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except OSError:
+    # If we can't create the folder, log it but don't crash (serverless environment)
+    logging.warning(f"Could not create upload folder: {UPLOAD_FOLDER}")
+    pass
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "a-very-secret-key-for-development")
@@ -143,11 +157,13 @@ class Content(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    purpose = db.Column(db.String(100), nullable=True)
+    purpose = db.Column(db.String(500), nullable=True)
     writing_style = db.Column(db.String(100), nullable=True)
-    audience = db.Column(db.String(100), nullable=True)
+    audience = db.Column(db.String(500), nullable=True)
     keywords = db.Column(db.String(500), nullable=True)
     hashtags = db.Column(db.String(500), nullable=True)
+    cta = db.Column(db.String(500), nullable=True)
+    negative_constraints = db.Column(db.Text, nullable=True)
     image_path = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -223,8 +239,14 @@ def inject_now():
     }
 
 # Configure Google Gemini API
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-2.5-flash')
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    logging.info("Gemini API configured successfully")
+else:
+    logging.warning("GEMINI_API_KEY not found in environment variables")
+    model = None
 
 # Global error handlers
 @app.errorhandler(Exception)
@@ -351,7 +373,7 @@ def admin_dashboard():
     
     total_users = User.query.count()
     total_contents = Content.query.count()
-    recent_contents = Content.query.order_by(Content.created_at.desc()).limit(5).all()
+    recent_contents = Content.query.order_by(Content.created_at.desc()).limit(3).all()
     
     return render_template('admin_dashboard.html', 
                          users=users, 
@@ -474,7 +496,7 @@ def user_dashboard():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
-    recent_contents = Content.query.filter_by(user_id=current_user.id).order_by(Content.created_at.desc()).limit(5).all()
+    recent_contents = Content.query.filter_by(user_id=current_user.id).order_by(Content.created_at.desc()).limit(3).all()
     total_contents = Content.query.filter_by(user_id=current_user.id).count()
     
     return render_template('user_dashboard.html', 
@@ -519,6 +541,8 @@ def save_content():
         audience = request.form.get('audience', '')
         keywords = request.form.get('keywords', '')
         hashtags = request.form.get('hashtags', '')
+        cta = request.form.get('cta', '')
+        negative_constraints = request.form.get('negative_constraints', '')
         
         if not title or not content_text:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -531,12 +555,27 @@ def save_content():
             writing_style=writing_style,
             audience=audience,
             keywords=keywords,
-            hashtags=hashtags
+            hashtags=hashtags,
+            cta=cta,
+            negative_constraints=negative_constraints
         )
         db.session.add(content)
         db.session.commit()
         
-        return jsonify({'success': True, 'message': 'Content saved successfully'})
+        # Return content data for frontend update
+        content_data = {
+            'id': content.id,
+            'title': content.title,
+            'content': content.content,
+            'purpose': content.purpose,
+            'created_at': content.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Content saved successfully',
+            'content': content_data
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -566,6 +605,8 @@ def edit_content(content_id):
         content.audience = request.form.get('audience', content.audience)
         content.keywords = request.form.get('keywords', content.keywords)
         content.hashtags = request.form.get('hashtags', content.hashtags)
+        content.cta = request.form.get('cta', content.cta)
+        content.negative_constraints = request.form.get('negative_constraints', content.negative_constraints)
         content.updated_at = datetime.utcnow()
         
         db.session.commit()
@@ -596,6 +637,11 @@ def delete_content(content_id):
 @login_required
 def generate_content():
     try:
+        logging.info("Generate content request received")
+        # Check if Gemini model is available
+        if model is None:
+            logging.error("Gemini model is None - API not configured")
+            return jsonify({'error': 'Gemini API is not configured. Please check your API key.'}), 500
         # request.form is used for multipart/form-data
         data = request.form
         prompt = data.get('prompt', '')
@@ -605,7 +651,10 @@ def generate_content():
         word_count = data.get('wordCount', '')
         keywords = data.get('keywords', '')
         hashtags = data.get('hashtags', '')
+        cta = data.get('cta', '')
+        negative_constraints = data.get('negativeConstraints', '')
         copywriting_model = data.get('copywritingModel', 'none')
+        language = data.get('language', 'myanmar')
 
         model_instructions = {
             'AIDA': "using the AIDA (Attention, Interest, Desire, Action) framework",
@@ -617,9 +666,16 @@ def generate_content():
         }
         
         model_instruction = model_instructions.get(copywriting_model, "")
+        
+        # Set language instruction
+        language_instructions = {
+            'myanmar': "The response must be in the Burmese (Myanmar) language.",
+            'english': "The response must be in English."
+        }
+        language_instruction = language_instructions.get(language, "The response must be in the Burmese (Myanmar) language.")
 
         # Construct a more detailed prompt
-        enhanced_prompt = f"""You are a 10 years experience social media content writer. Directly generate a social media post {model_instruction}. Do not include any introductory phrases, explanations, or preambles. The response must be in the Burmese language.
+        enhanced_prompt = f"""You are a 10 years experience social media content writer. Directly generate a social media post {model_instruction}. Do not include any introductory phrases, explanations, or preambles. {language_instruction}
         Topic: {prompt}
         Purpose: {purpose}
         Writing Style: {writing_style}
@@ -627,28 +683,71 @@ def generate_content():
         Word Count: Approximately {word_count} words
         Keywords to include: {keywords}
         Hashtags to include: {hashtags}
+        Call to Action: {cta}
+        Avoid/Don't include: {negative_constraints}
         """
         
         # Check for an uploaded image
         image_file = request.files.get('image')
+        logging.info(f"Request files: {list(request.files.keys())}")
+        logging.info(f"Image file: {image_file}, filename: {image_file.filename if image_file else 'None'}")
         
-        if image_file:
-            # If an image is present, use it for context
-            logging.info(f"Image file received: {image_file.filename}")
-            img = PIL.Image.open(image_file.stream)
-            # Combine the text prompt and the image for the model
-            contents = [enhanced_prompt, img]
-            logging.info("Sending prompt and image to Gemini.")
-            response = model.generate_content(contents)
+        if image_file and image_file.filename:
+            # Check file size (limit to 7MB for Vercel serverless)
+            image_file.stream.seek(0, 2)  # Seek to end
+            file_size = image_file.stream.tell()
+            image_file.stream.seek(0)  # Reset to beginning
+            
+            logging.info(f"Image file received: {image_file.filename}, size: {file_size} bytes")
+            
+            # Check if file is too large (7MB limit)
+            if file_size > 7 * 1024 * 1024:  # 7MB
+                logging.warning(f"Image file too large: {file_size} bytes")
+                return jsonify({'error': 'Image file is too large. Please use an image smaller than 7MB.'}), 400
+            
+            try:
+                # Reset stream position to beginning
+                image_file.stream.seek(0)
+                img = PIL.Image.open(image_file.stream)
+                
+                # Resize image if it's too large (max 1536x1536 for better quality)
+                max_size = (1536, 1536)
+                if img.size[0] > max_size[0] or img.size[1] > max_size[1]:
+                    logging.info(f"Resizing image from {img.size} to fit {max_size}")
+                    img.thumbnail(max_size, PIL.Image.Resampling.LANCZOS)
+                
+                # Convert to RGB if necessary
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Combine the text prompt and the image for the model
+                contents = [enhanced_prompt, img]
+                logging.info("Sending prompt and image to Gemini.")
+                response = model.generate_content(contents)
+            except Exception as img_error:
+                logging.error(f"Error processing image: {img_error}")
+                # Fall back to text-only if image processing fails
+                logging.info("Falling back to text-only prompt due to image error.")
+                response = model.generate_content(enhanced_prompt)
         else:
             # If no image, proceed with text only
             logging.info("Sending text-only prompt to Gemini.")
             response = model.generate_content(enhanced_prompt)
 
-        return jsonify({'content': response.text})
+        # Ensure response has text content
+        if hasattr(response, 'text') and response.text:
+            return jsonify({'content': response.text})
+        else:
+            logging.error("Gemini response has no text content")
+            return jsonify({'error': 'Failed to generate content. Please try again.'}), 500
+            
     except Exception as e:
         logging.error(f"Error in generate_content: {e}")
-        return jsonify({'error': str(e)}), 500
+        # Ensure error response is always valid JSON
+        error_message = str(e)
+        if len(error_message) > 200:  # Truncate very long error messages
+            error_message = error_message[:200] + "..."
+        return jsonify({'error': error_message}), 500
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -684,9 +783,10 @@ def create_admin_user():
         logging.info(f"Admin user created: username='{admin_username}'")
 
 def migrate_database():
-    """Remove email column if it exists"""
+    """Remove email column if it exists and add new content fields"""
     try:
         with db.engine.connect() as conn:
+            # Remove email column from user table if it exists
             result = conn.execute(db.text("""
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -700,22 +800,76 @@ def migrate_database():
                 logging.info("Email column removed successfully")
             else:
                 logging.info("Email column does not exist, no migration needed")
+            
+            # Add new fields to content table if they don't exist
+            # Check for cta column
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='content' AND column_name='cta'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding cta column to content table...")
+                conn.execute(db.text("ALTER TABLE content ADD COLUMN cta VARCHAR(500)"))
+                conn.commit()
+                logging.info("CTA column added successfully")
+            
+            # Check for negative_constraints column
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='content' AND column_name='negative_constraints'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding negative_constraints column to content table...")
+                conn.execute(db.text("ALTER TABLE content ADD COLUMN negative_constraints TEXT"))
+                conn.commit()
+                logging.info("Negative constraints column added successfully")
+            
+            # Update purpose and audience column lengths if needed
+            logging.info("Updating purpose and audience column lengths...")
+            conn.execute(db.text("ALTER TABLE content ALTER COLUMN purpose TYPE VARCHAR(500)"))
+            conn.execute(db.text("ALTER TABLE content ALTER COLUMN audience TYPE VARCHAR(500)"))
+            conn.commit()
+            logging.info("Column lengths updated successfully")
+            
     except Exception as e:
         logging.error(f"Migration failed: {e}")
         raise e
 
-# Initialize database when app starts (for production)
-with app.app_context():
+# Initialize database function (called on first request)
+def init_db():
+    """Initialize database tables and admin user"""
     try:
-        db.create_all()
-        migrate_database()
-        create_admin_user()
-        logging.info("Database tables created/updated.")
-        logging.info(f"Using database: {DATABASE_URL.split('://')[0]}")
+        with app.app_context():
+            db.create_all()
+            migrate_database()
+            create_admin_user()
+            logging.info("Database tables created/updated.")
+            logging.info(f"Using database: {DATABASE_URL.split('://')[0] if DATABASE_URL else 'No database URL'}")
     except Exception as e:
         logging.error(f"Database initialization failed: {e}")
         # Don't raise error in production, just log it
         pass
+
+# Initialize database when app starts (for production)
+# Only run if not in serverless environment
+if not os.getenv('VERCEL'):
+    init_db()
+
+# For serverless environments, initialize on first request
+# Using before_request instead of deprecated before_first_request
+_db_initialized = False
+
+@app.before_request
+def initialize_database():
+    """Initialize database on first request in serverless environment"""
+    global _db_initialized
+    if os.getenv('VERCEL') and not _db_initialized:
+        init_db()
+        _db_initialized = True
 
 if __name__ == '__main__':
     app.run(debug=True)

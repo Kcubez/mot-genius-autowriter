@@ -86,3 +86,4 @@ coverage.xml
 *.bak
 *.backup
 layout_backup.html
+.vercel
