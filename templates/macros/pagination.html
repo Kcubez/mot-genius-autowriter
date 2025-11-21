@@ -159,11 +159,12 @@
              placeholder="Search..." 
              value="{{ search_term }}" 
              id="search-input"
+             class="text-black"
              onkeyup="handleSearch(event)">
     </div>
     
     {% if show_filter %}
-    <div class="filter-dropdown w-full md:w-auto">
+    <div class="filter-dropdown w-full md:w-auto text-black">
       <select name="filter" id="filter-select" onchange="handleFilter(event)">
         <option value="">All Items</option>
         <option value="active" {{ 'selected' if filter_value == 'active' }}>Active</option>

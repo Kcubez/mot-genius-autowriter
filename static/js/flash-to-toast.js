@@ -1,61 +1,42 @@
 // Flash Messages to Toast Converter
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('Flash-to-toast script loaded');
-  
   // Wait a bit for notifications.js to load
   setTimeout(() => {
     // Test if notify is working
-    if (window.notify) {
-      console.log('Notify system is available');
-    } else {
-      console.error('Notify system not available');
+    if (!window.notify) {
       return;
     }
     
     // Check for flash messages data attribute
     const flashData = document.querySelector('[data-flash-messages]');
-    console.log('Flash data element:', flashData);
     
     if (flashData) {
       try {
         const messagesData = flashData.getAttribute('data-flash-messages');
-        console.log('Raw flash messages data:', messagesData);
         
         if (!messagesData) {
-          console.log('No flash messages data found');
           return;
         }
         
         const messages = JSON.parse(messagesData);
-        console.log('Parsed flash messages:', messages);
-        console.log('Number of messages:', messages.length);
         
         if (messages && messages.length > 0) {
           messages.forEach(([category, message], index) => {
-            console.log(`Processing message ${index + 1}:`, category, message);
             // Add a small delay between messages to avoid overlap
             setTimeout(() => {
               processMessage(category, message);
             }, index * 100);
           });
-        } else {
-          console.log('Messages array is empty');
         }
       } catch (e) {
-        console.error('Error parsing flash messages:', e);
-        console.error('Raw data that failed to parse:', flashData.getAttribute('data-flash-messages'));
+        // Silent error handling
       }
-    } else {
-      console.log('No flash messages element found');
     }
   }, 300);
 });
 
 function processMessage(category, message) {
-  console.log('Processing message with notify:', category, message);
-  
   if (typeof window.notify === 'undefined') {
-    console.error('Notify object not available');
     return;
   }
   
@@ -69,6 +50,12 @@ function processMessage(category, message) {
         window.notify.error(message, '❌ Account Deactivated');
       } else if (message.includes('Username already exists')) {
         window.notify.error(message, '👤 User Creation Failed');
+      } else if (message.includes('trial account has expired')) {
+        window.notify.show(message, 'error', '⏰ Trial Expired', 8000);
+      } else if (message.includes('subscription has expired')) {
+        window.notify.show(message, 'error', '📅 Subscription Expired', 8000);
+      } else if (message.includes('account has expired')) {
+        window.notify.show(message, 'error', '⏰ Account Expired', 8000);
       } else {
         window.notify.error(message, '❌ Error');
       }

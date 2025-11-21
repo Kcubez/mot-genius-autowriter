@@ -10,3 +10,4 @@ psycopg2-binary
 Flask-WTF
 WTForms
 Flask-Bcrypt
+email-validator

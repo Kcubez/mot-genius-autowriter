@@ -1,41 +1,211 @@
-{% extends "layout.html" %} {% block title %}Dashboard - MOT{% endblock %} {% block head %}
+{% extends "layout.html" %} {% block title %}Dashboard - Genius AutoWriter{% endblock %} {% block
+head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
 <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 {% endblock %} {% block content %}
 <div class="min-h-screen py-8">
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-    <!-- Welcome Section -->
-    <div class="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-      <div
-        class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0"
-      >
-        <div>
-          <h1
-            class="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent"
-          >
-            Welcome, {{ current_user.username }}!
-          </h1>
-          <p class="text-slate-600 mt-2 text-lg">Generate and manage your AI-powered content</p>
-        </div>
-        <div class="text-center md:text-right">
-          <div
-            class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-xl shadow-lg"
-          >
-            <p class="text-3xl font-bold">{{ total_contents }}</p>
-            <p class="text-blue-100 text-sm">Total Contents</p>
-          </div>
-        </div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <!-- Header -->
+    <div class="dashboard-header">
+      <div>
+        <h1 class="dashboard-title">GENIUS AUTOWRITER</h1>
+        <p class="dashboard-subtitle" data-translate="Content Creation">Content Creation</p>
       </div>
+      <button
+        id="change-api-key-btn"
+        class="change-api-key-btn"
+        type="button"
+        data-current-key="{{ current_user.api_key or '' }}"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="lucide lucide-key-icon lucide-key"
+        >
+          <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
+          <path d="m21 2-9.6 9.6" />
+          <circle cx="7.5" cy="15.5" r="5.5" />
+        </svg>
+        <span data-translate="Change API Key">Change API Key</span>
+      </button>
     </div>
 
-    <!-- Content Generation -->
-    <div class="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-      <div class="flex items-center space-x-3 mb-6">
+    <!-- Content Generation Form -->
+    <div class="form-container">
+      <h2 class="form-title" data-translate="Content Details Form">Content Details Form</h2>
+      <p
+        class="form-description"
+        data-translate="Provide the details for the content you want to generate."
+      >
+        Provide the details for the content you want to generate.
+      </p>
+      <!-- Content Title -->
+      <div class="form-field">
+        <label for="page-name" class="form-label">
+          <span data-translate="Content Title">Content Title</span><span class="required">*</span>
+        </label>
+        <input
+          type="text"
+          id="page-name"
+          required
+          class="form-input"
+          placeholder="Enter content title"
+          data-placeholder="Enter content title"
+        />
+      </div>
+      <!-- Topic -->
+      <div class="form-field">
+        <label for="prompt" class="form-label">
+          <span data-translate="Topic">Topic</span><span class="required">*</span>
+        </label>
+        <textarea
+          id="prompt"
+          required
+          class="form-textarea"
+          placeholder="Write the main topic or draft idea of your content here"
+          data-placeholder="Write the main topic or draft idea of your content here"
+        ></textarea>
+      </div>
+      <!-- Purpose and Target Audience -->
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label for="purpose" class="form-label">
+            <span data-translate="Purpose">Purpose</span><span class="required">*</span>
+          </label>
+          <select
+            id="purpose"
+            required
+            class="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-red-500 hover:border-red-400 transition-colors duration-200 cursor-pointer"
+          >
+            <option value="" disabled selected data-translate="Select the purpose">
+              Select the purpose
+            </option>
+            <option value="informative" data-translate="Informative Content">
+              Informative Content
+            </option>
+            <option value="engagement" data-translate="Audience Engagement">
+              Audience Engagement
+            </option>
+            <option value="sales" data-translate="Product/Service Sales">
+              Product/Service Sales
+            </option>
+            <option value="emotional" data-translate="Emotional Content">Emotional Content</option>
+            <option value="announcement" data-translate="Event/Update Announcement">
+              Event/Update Announcement
+            </option>
+            <option value="educational" data-translate="Educational Content">
+              Educational Content
+            </option>
+            <option value="showcase" data-translate="Product Feature Showcase">
+              Product Feature Showcase
+            </option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="audience" class="form-label">
+            <span data-translate="Target Audience">Target Audience</span
+            ><span class="required">*</span>
+          </label>
+          <input
+            type="text"
+            id="audience"
+            required
+            class="form-input"
+            placeholder="e.g. Young adults aged 20-30"
+            data-placeholder="e.g. Young adults aged 20-30"
+          />
+        </div>
+      </div>
+
+      <!-- Writing Style / Tone, Content Length, Output Language -->
+      <div class="form-grid-3">
+        <div class="form-field">
+          <label for="writing-style" class="form-label">
+            <span data-translate="Writing Style / Tone">Writing Style / Tone</span
+            ><span class="required">*</span>
+          </label>
+          <select
+            id="writing-style"
+            required
+            class="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-red-500 hover:border-red-400 transition-colors duration-200 cursor-pointer"
+          >
+            <option value="" disabled selected data-translate="Select the writing style or tone">
+              Select the writing style or tone
+            </option>
+            <option value="promotional" data-translate="Promotional / Sales-Oriented Style">
+              Promotional / Sales-Oriented Style
+            </option>
+            <option value="conversational" data-translate="Conversational / Interactive Style">
+              Conversational / Interactive Style
+            </option>
+            <option value="informational" data-translate="Informational / Educational Style">
+              Informational / Educational Style
+            </option>
+            <option value="storytelling" data-translate="Storytelling / Inspirational Style">
+              Storytelling / Inspirational Style
+            </option>
+            <option value="casual" data-translate="Casual / Humorous Style">
+              Casual / Humorous Style
+            </option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="word-count" class="form-label">
+            <span data-translate="Content Length">Content Length</span
+            ><span class="required">*</span>
+          </label>
+          <select
+            id="word-count"
+            class="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-red-500 hover:border-red-400 transition-colors duration-200 cursor-pointer"
+            required
+          >
+            <option value="" disabled selected data-translate="Select content length">
+              Select content length
+            </option>
+            <option value="150" data-translate="Short">Short</option>
+            <option value="300" data-translate="Medium">Medium</option>
+            <option value="600" data-translate="Long">Long</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="language" class="form-label">
+            <span data-translate="Output Language">Output Language</span
+            ><span class="required">*</span>
+          </label>
+          <select
+            id="language"
+            class="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-red-500 hover:border-red-400 transition-colors duration-200 cursor-pointer"
+            required
+          >
+            <option value="" data-translate="Select output language">Select output language</option>
+            <option value="myanmar" data-translate="Myanmar (မြန်မာ)">Myanmar (မြန်မာ)</option>
+            <option value="english" data-translate="English (အင်္ဂလိပ်)">
+              English (အင်္ဂလိပ်)
+            </option>
+          </select>
+        </div>
+      </div>
+      <!-- Upload Image Section -->
+      <div class="form-field">
+        <label class="form-label">
+          <span data-translate="Upload Image">Upload Image</span>
+        </label>
         <div
-          class="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center"
+          id="image-upload-area"
+          class="image-upload-container"
+          onclick="document.getElementById('image-upload').click()"
         >
+          <input type="file" id="image-upload" class="hidden-file-input" accept="image/*" />
           <svg
+            class="image-upload-icon"
             xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 text-white"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -44,356 +214,368 @@
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M13 10V3L4 14h7v7l9-11h-7z"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
+          <p class="image-upload-text">Drop your images here, or browse</p>
+          <p class="image-upload-hint">Supports: JPG, JPEG2000, PNG</p>
         </div>
-        <h2 class="text-2xl font-bold text-slate-900">AI Content Generator</h2>
-      </div>
-      <div class="mb-4">
-        <label for="prompt" class="block text-sm font-medium text-gray-700 mb-2">Topic</label>
-        <input
-          type="text"
-          id="prompt"
-          class="w-full p-2 border border-gray-300 rounded-md"
-          placeholder="ဒီနေရာတွင် content ၏ အဓိက အကြောင်းအရာကို ရေးပါ"
-        />
-      </div>
-      <div class="mb-4">
-        <label for="image-upload" class="block text-sm font-medium text-gray-700 mb-2"
-          >Upload an image (Optional):</label
-        >
-        <input
-          type="file"
-          id="image-upload"
-          class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-          accept="image/*"
-        />
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label for="purpose" class="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
-          <input
-            type="text"
-            id="purpose"
-            class="w-full p-2 border border-gray-300 rounded-md"
-            placeholder="ဥပမာ - ပညာပေးရန်၊ Engagement ရရှိရန်၊ ရောင်းအားမြှင့်တင်ရန်"
-          />
-        </div>
-        <div>
-          <label for="audience" class="block text-sm font-medium text-gray-700 mb-2"
-            >Audience</label
-          >
-          <input
-            type="text"
-            id="audience"
-            class="w-full p-2 border border-gray-300 rounded-md"
-            placeholder="ဥပမာ - အသက် ၂၀ မှ ၃၀ ကြား လူငယ်တွေ"
-          />
-        </div>
-        <div>
-          <label for="copywriting-model" class="block text-sm font-medium text-gray-700 mb-2"
-            >Copywriting Model</label
-          >
-          <select id="copywriting-model" class="w-full p-2 border border-gray-300 rounded-md">
-            <option value="none">None (General)</option>
-            <option value="AIDA">AIDA (Attention, Interest, Desire, Action)</option>
-            <option value="PAS">PAS (Problem, Agitate, Solution)</option>
-            <option value="FAB">FAB (Features, Advantages, Benefits)</option>
-            <option value="4Ps">The 4 P's (Picture, Promise, Prove, Push)</option>
-            <option value="BAB">BAB (Before, After, Bridge)</option>
-          </select>
-        </div>
-        <div>
-          <label for="language" class="block text-sm font-medium text-gray-700 mb-2"
-            >Output Language</label
-          >
-          <select id="language" class="w-full p-2 border border-gray-300 rounded-md">
-            <option value="myanmar">မြန်မာ (Myanmar)</option>
-            <option value="english">English</option>
-          </select>
-        </div>
-      </div>
-      
-      <!-- Writing Style - Full Width -->
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2"
-          >Writing Style (အများဆုံး ၃ခု ရွေးချယ်နိုင်ပါသည်)</label
-        >
-        <div class="relative">
-          <div 
-            id="writing-style-dropdown" 
-            class="w-full p-2 border border-gray-300 rounded-md bg-white cursor-pointer flex justify-between items-center"
-          >
-            <span id="writing-style-display" class="text-gray-500">ရွေးချယ်ပါ...</span>
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-          </div>
-          <div 
-            id="writing-style-options" 
-            class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto"
-          >
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="friendly" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">ဖော်ရွေသော (Friendly)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="formal" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">တရားဝင် (Formal)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="humorous" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">ဟာသ (Humorous)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="confident" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">ယုံကြည်မှုရှိသော (Confident)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="enthusiastic" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">စိတ်အားထက်သန်သော (Enthusiastic)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="professional" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">ပရော်ဖက်ရှင်နယ် (Professional)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="conversational" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">စကားပြောပုံစံ (Conversational)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="narrative" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">ဇာတ်လမ်းပြောပုံစံ (Narrative)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="expository" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">အသိပေးရှင်းပြပုံစံ (Expository)</span>
-            </label>
-            <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" name="writing-style" value="persuasive" class="writing-style-checkbox rounded text-indigo-600 focus:ring-indigo-500">
-              <span class="text-sm">စည်းရုံးဆွဲဆောင်ပုံစံ (Persuasive)</span>
-            </label>
+        <!-- Image Preview -->
+        <div id="image-preview-container" style="display: none; margin-top: 1rem">
+          <div style="position: relative; display: inline-block; max-width: 220px">
+            <img
+              id="image-preview"
+              src=""
+              alt="Preview"
+              style="width: 100%; height: auto; border-radius: 0.5rem; border: 2px solid #e5e7eb"
+            />
+            <button
+              type="button"
+              id="remove-image-btn"
+              onclick="event.stopPropagation();"
+              style="
+                position: absolute;
+                top: -8px;
+                right: -8px;
+                background: #ef4444;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+              "
+              title="Remove image"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                style="width: 16px; height: 16px"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
           </div>
         </div>
-      </div>
-      
-      <!-- Word Count - Full Width -->
-      <div class="mb-4">
-        <label for="word-count" class="block text-sm font-medium text-gray-700 mb-2"
-          >Word Count: <span id="word-count-value">300</span></label
-        >
-        <input
-          type="range"
-          id="word-count"
-          min="50"
-          max="1000"
-          value="300"
-          step="50"
-          class="w-full slider"
-        />
-        <style>
-          .slider {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
-            outline: none;
-            cursor: pointer;
-          }
-          
-          .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            background: #ffffff;
-            border: 3px solid #3b82f6;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          }
-          
-          .slider::-moz-range-thumb {
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            background: #ffffff;
-            border: 3px solid #3b82f6;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          }
-          
-          .slider::-webkit-slider-track {
-            height: 8px;
-            background: linear-gradient(to right, #3b82f6 0%, #3b82f6 var(--value, 30%), #e5e7eb var(--value, 30%), #e5e7eb 100%);
-            border-radius: 4px;
-          }
-          
-          .slider::-moz-range-track {
-            height: 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
-          }
-          
-          .slider::-moz-range-progress {
-            height: 8px;
-            background: #3b82f6;
-            border-radius: 4px;
-          }
-        </style>
-      </div>
-      <div class="mb-4">
-        <label for="keywords" class="block text-sm font-medium text-gray-700 mb-2"
-          >Keywords (separate keywords with commas)</label
-        >
-        <input
-          type="text"
-          id="keywords"
-          class="w-full p-2 border border-gray-300 rounded-md"
-          placeholder="ဥပမာ - Digital Marketing မြန်မာ၊ အွန်လိုင်းစီးပွားရေး"
-        />
-      </div>
-      <div class="mb-4">
-        <label for="hashtags" class="block text-sm font-medium text-gray-700 mb-2">Hashtags</label>
-        <input
-          type="text"
-          id="hashtags"
-          class="w-full p-2 border border-gray-300 rounded-md"
-          placeholder="ဥပမာ - #DigitalMarketingMyanmar #OnlineBusinessTips"
-        />
-      </div>
-      <div class="mb-4">
-        <label for="cta" class="block text-sm font-medium text-gray-700 mb-2"
-          >Call to Action (CTA)</label
-        >
-        <input
-          type="text"
-          id="cta"
-          class="w-full p-2 border border-gray-300 rounded-md"
-          placeholder="ဥပမာ - ပိုမိုသိရှိလိုပါက page ကို message ပို့လိုက်ပါ၊ လူကြီးမင်းအမြင်ကို Comment မှာ ရေးခဲ့ပါ"
-        />
-      </div>
-      <div class="mb-4">
-        <label for="negative-constraints" class="block text-sm font-medium text-gray-700 mb-2"
-          >Negative Constraints</label
-        >
-        <textarea
-          id="negative-constraints"
-          rows="3"
-          class="w-full p-2 border border-gray-300 rounded-md"
-          placeholder="ဥပမာ - ဈေးနှုန်းအကြောင်းမထည့်ရ၊ ပြိုင်ဘက်ကို တိုက်ရိုက်မဖော်ပြရ၊ အပျက်သဘောဆောင်သော စကားလုံးများ မသုံးရ"
-        ></textarea>
       </div>
 
-      <button
-        id="generate-btn"
-        class="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 mb-4 transition-colors flex items-center justify-center disabled:opacity-75"
+      <!-- Hashtags and Negative Constraints -->
+      <div class="form-grid-2">
+        <div class="form-field">
+          <label for="hashtags" class="form-label">
+            <span data-translate="Hashtags">Hashtags</span>
+          </label>
+          <input
+            type="text"
+            id="hashtags"
+            class="form-input"
+            placeholder="e.g. #DigitalMarketing #OnlineBusiness"
+            data-placeholder="e.g. #DigitalMarketing #OnlineBusiness"
+          />
+          <small style="color: #9ca3af; font-size: 0.75rem">You can add the hashtags.</small>
+        </div>
+        <div class="form-field">
+          <label for="negative-constraints" class="form-label">
+            <span data-translate="Negative Constraints">Negative Constraints</span>
+          </label>
+          <input
+            type="text"
+            id="negative-constraints"
+            class="form-input"
+            placeholder="e.g. Do not mention price, avoid offensive words"
+            data-placeholder="e.g. Do not mention price, avoid offensive words"
+          />
+          <small style="color: #9ca3af; font-size: 0.75rem"
+            >Things that content should not include.</small
+          >
+        </div>
+      </div>
+
+      <!-- Hidden fields for keywords and CTA (kept for backward compatibility) -->
+      <input type="hidden" id="keywords" value="" />
+      <input type="hidden" id="cta" value="" />
+
+      <!-- Emoji Toggle Section -->
+      <div class="flex justify-center">
+        <div class="emoji-toggle-container" style="max-width: 700px; width: 100%">
+          <label class="emoji-toggle-label" data-translate="Include Emojis">Include Emojis</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="emoji-toggle" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Generate Button -->
+      <div class="flex justify-center">
+        <button id="generate-btn" class="generate-button" style="max-width: 700px; width: 100%">
+          <svg
+            class="animate-spin h-5 w-5 text-white mr-2 hidden"
+            id="generate-spinner"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <!-- Lucide Wand icon (same as Generator in header) -->
+          <svg
+            id="generate-magic-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 mr-2"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"
+            />
+            <path d="m14 7 3 3" />
+            <path d="M5 6v4" />
+            <path d="M19 14v4" />
+            <path d="M10 2v2" />
+            <path d="M7 8H3" />
+            <path d="M21 16h-4" />
+            <path d="M11 3H9" />
+          </svg>
+          <span id="generate-btn-text" data-translate="Generate Content">Generate Content</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Generated Content Section -->
+    <div class="generated-content-container">
+      <h2 class="generated-content-title" data-translate="Generated Content">Generated Content</h2>
+      <p
+        class="generated-content-subtitle"
+        data-translate="Review and edit your generated content here."
       >
+        Review and edit your generated content here.
+      </p>
+
+      <div id="generated-content-display" class="generated-content-area">
         <svg
-          class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden"
-          id="generate-spinner"
+          class="empty-state-icon"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
+          stroke="currentColor"
         >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          ></circle>
           <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+          />
         </svg>
-        <span id="generate-btn-text">Generate Content</span>
-      </button>
-      <div class="mt-4">
-        <label for="content-area" class="block text-sm font-medium text-gray-700 mb-2"
-          >Generated Content:</label
-        >
-        <textarea
-          id="content-area"
-          rows="10"
-          class="w-full p-2 border border-gray-300 rounded-md"
-          placeholder="Generated content will appear here..."
-        ></textarea>
+        <p class="empty-state-text" data-translate="Fill out the form to generate your content.">
+          Fill out the form to generate your content.
+        </p>
+        <p class="empty-state-subtext" data-translate="Your content will appear here.">
+          Your content will appear here.
+        </p>
       </div>
 
-      <!-- Save Content Button -->
-      <div class="mt-4 flex space-x-4">
+      <!-- Loading Animation (inside content area) -->
+      <div
+        id="loading-overlay"
+        style="
+          display: none;
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.9);
+          border-radius: 1rem;
+          justify-content: center;
+          align-items: center;
+          flex-direction: column;
+          z-index: 10;
+        "
+      >
+        <div class="loading-spinner-container">
+          <div class="loading-spinner"></div>
+          <div class="loading-spinner-ring"></div>
+        </div>
+        <p
+          style="
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            text-align: center;
+          "
+          data-translate="Generating your content..."
+        >
+          Generating your content...
+        </p>
+        <p
+          style="
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            text-align: center;
+          "
+          data-translate="Please wait a moment"
+        >
+          Please wait a moment
+        </p>
+      </div>
+
+      <textarea
+        id="content-area"
+        rows="10"
+        style="
+          display: none;
+          width: 100%;
+          padding: 1rem;
+          background-color: #ffffff;
+          color: #000000;
+          border: 1px solid #d1d5db;
+          border-radius: 0.5rem;
+          margin-top: 1rem;
+        "
+        placeholder="Generated content will appear here..."
+        data-placeholder="Generated content will appear here..."
+      ></textarea>
+
+      <!-- Save Content & Copy Buttons -->
+      <div class="mt-6 flex gap-4 justify-center">
+        <!-- Copy Button -->
+        <button
+          id="copy-content-btn"
+          class="copy-btn flex items-center justify-center space-x-2 px-6 py-3 bg-white border-2 border-red-500 rounded-2xl transition-all duration-200 font-medium w-[140px]"
+          style="display: none"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="copy-icon h-5 w-5 transition-colors duration-200 flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+            style="color: #ef4444"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+            />
+          </svg>
+          <span
+            class="copy-text text-base transition-colors duration-200"
+            data-translate="Copy"
+            style="color: #ef4444"
+            >Copy</span
+          >
+        </button>
+
+        <!-- Save Content Button -->
         <button
           id="save-content-btn"
-          class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-75 disabled:cursor-not-allowed"
+          class="save-btn flex items-center justify-center space-x-2 px-6 py-3 bg-white border-2 border-red-500 rounded-2xl transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed w-[140px]"
+          style="display: none"
           disabled
         >
-          Save Content
-        </button>
-        <a
-          href="{{ url_for('content_history') }}"
-          class="bg-gray-500 text-white px-6 py-2 rounded-md hover:bg-gray-600 transition-colors"
-        >
-          View My Contents
-        </a>
-      </div>
-    </div>
-
-    <!-- Recent Content -->
-    <div
-      class="bg-white/70 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-xl border border-white/20"
-    >
-      <div
-        class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-2 sm:space-y-0"
-      >
-        <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Recent Content</h2>
-        <a
-          href="{{ url_for('content_history') }}"
-          class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
-          >View All</a
-        >
-      </div>
-      {% if recent_contents %}
-      <div class="space-y-3">
-        {% for content in recent_contents %}
-        <div class="border-l-4 border-indigo-400 pl-4 py-2">
-          <div
-            class="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-2 sm:space-y-0"
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="save-icon h-5 w-5 transition-colors duration-200 flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+            style="color: #ef4444"
           >
-            <div class="flex-1 min-w-0">
-              <h3 class="font-medium text-gray-900">
-                <a
-                  href="{{ url_for('view_content', content_id=content.id) }}"
-                  class="hover:text-indigo-600 block sm:inline"
-                >
-                  {{ content.title }}
-                </a>
-              </h3>
-              <p class="text-sm text-gray-600 break-words">{{ content.content[:100] }}...</p>
-              <p class="text-xs text-gray-500">
-                {{ content.created_at.strftime('%Y-%m-%d %H:%M') }}
-              </p>
-            </div>
-            <span
-              class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 self-start sm:ml-4"
-            >
-              {{ content.purpose or 'General' }}
-            </span>
-          </div>
-        </div>
-        {% endfor %}
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+            />
+          </svg>
+          <span
+            class="save-text text-base transition-colors duration-200"
+            data-translate="Save"
+            style="color: #ef4444"
+            >Save</span
+          >
+        </button>
       </div>
-      {% else %}
-      <p class="text-gray-500 text-center py-8">
-        No content created yet. Generate your first content above!
-      </p>
-      {% endif %}
     </div>
   </div>
-  {% endblock %}
 </div>
+
+<!-- API Key Modal -->
+<div id="api-key-modal" class="api-key-modal" aria-hidden="true">
+  <div
+    class="api-key-modal-content"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="api-key-modal-title"
+  >
+    <button type="button" class="api-key-modal-close" id="close-api-key-modal" aria-label="Close">
+      &times;
+    </button>
+    <h3 id="api-key-modal-title" data-translate="API Key">API Key</h3>
+    <p
+      class="api-key-modal-description"
+      data-translate="Update the Gemini API key you want to use on this generator."
+    >
+      Update the Gemini API key you want to use on this generator.
+    </p>
+    <input
+      type="text"
+      id="api-key-input"
+      class="api-key-input"
+      placeholder="Enter your Gemini API key"
+      data-placeholder="Enter your Gemini API key"
+    />
+    <div class="api-key-modal-actions">
+      <button
+        type="button"
+        class="api-key-btn secondary"
+        id="api-key-cancel-btn"
+        data-translate="Cancel"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="api-key-btn primary"
+        id="api-key-submit-btn"
+        data-translate="Change"
+        data-default-text="Change"
+        data-myanmar-text="ပြောင်းရန်"
+      >
+        Change
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

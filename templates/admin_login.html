@@ -1,5 +1,5 @@
 {% extends "layout.html" %} 
-{% block title %}Login - Genius AutoWriter{% endblock %} 
+{% block title %}Admin Login - Genius AutoWriter{% endblock %} 
 {% block content %}
 <div class="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md sm:max-w-lg lg:max-w-4xl w-full">
@@ -23,9 +23,9 @@
             Genius Autowriter
           </p>
         </div>
-        <!-- Login Form -->
+        <!-- Admin Login Form -->
         <div class="max-w-xl mx-auto">
-        <form method="POST" class="login-form space-y-6" id="loginForm">
+        <form method="POST" class="login-form space-y-6" id="adminLoginForm">
           {{ form.hidden_tag() }}
 
           <div class="form-field">
@@ -35,8 +35,7 @@
               data-translate="Email"
               >Email</label
             >
-            {{ form.email(class="w-full px-4 py-3 lg:px-5 lg:py-3.5 lg:text-base border-0 border-b-2 border-red-600 rounded-lg focus:outline-none focus:border-red-500 transition-all duration-200 bg-white text-black placeholder-gray-400", onkeydown="return preventSpaceKey(event)", oninput="cleanInput(event)", onpaste="setTimeout(() => cleanInput(event), 10)", autocomplete="email", **{"data-translate-placeholder": "Enter your email"}) }} {% if
-            form.email.errors %}
+            {{ form.email(class="w-full px-4 py-3 lg:px-5 lg:py-3.5 lg:text-base border-0 border-b-2 border-red-600 rounded-lg focus:outline-none focus:border-red-500 transition-all duration-200 bg-white text-black placeholder-gray-400", placeholder="Enter your email", onkeydown="return preventSpaceKey(event)", oninput="cleanInput(event)", onpaste="setTimeout(() => cleanInput(event), 10)", autocomplete="off", **{"data-translate-placeholder": "Enter your email"}) }} {% if form.email.errors %}
             <div class="text-red-400 text-sm mt-1">
               {% for error in form.email.errors %}
               <p>{{ error }}</p>
@@ -53,7 +52,7 @@
               >Password</label
             >
             <div class="relative">
-              {{ form.password(class="w-full px-4 py-3 lg:px-5 lg:py-3.5 lg:text-base pr-12 border-0 border-b-2 border-red-600 rounded-lg focus:outline-none focus:border-red-500 transition-all duration-200 bg-white text-black placeholder-gray-400", id="password-field", onkeydown="return preventSpaceKey(event)", oninput="cleanInput(event)", onpaste="setTimeout(() => cleanInput(event), 10)", autocomplete="current-password", **{"data-translate-placeholder": "Enter your password"}) }}
+              {{ form.password(class="w-full px-4 py-3 lg:px-5 lg:py-3.5 lg:text-base pr-12 border-0 border-b-2 border-red-600 rounded-lg focus:outline-none focus:border-red-500 transition-all duration-200 bg-white text-black placeholder-gray-400", id="password-field", placeholder="Enter your password", onkeydown="return preventSpaceKey(event)", oninput="cleanInput(event)", onpaste="setTimeout(() => cleanInput(event), 10)", autocomplete="off", **{"data-translate-placeholder": "Enter your password"}) }}
               <button
                 type="button"
                 class="password-toggle absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
@@ -106,40 +105,14 @@
             {% endif %}
           </div>
 
-          <div class="form-field">
-            <label
-              for="api_key"
-              class="block text-sm lg:text-base font-medium text-white mb-2"
-              data-translate="Gemini API Key"
-              >Gemini API Key</label
-            >
-            {{ form.api_key(class="w-full px-4 py-3 lg:px-5 lg:py-3.5 lg:text-base border-0 border-b-2 border-red-600 rounded-lg focus:outline-none focus:border-red-500 transition-all duration-200 bg-white text-black placeholder-gray-400", **{"data-translate-placeholder": "Enter Gemini API Key"}) }} {%
-            if form.api_key.errors %}
-            <div class="text-red-400 text-sm mt-1">
-              {% for error in form.api_key.errors %}
-              <p>{{ error }}</p>
-              {% endfor %}
-            </div>
-            {% endif %}
-          </div>
-
-          <div class="flex justify-center">
-            <button
-              id="loginButton"
-              type="submit"
-              class="bg-red-600 hover:bg-red-700 text-white py-3 lg:py-3.5 px-8 lg:text-base rounded-lg font-semibold transition-all duration-200 shadow-lg"
-              style="width: 100%; max-width: 200px;"
-            >
-              <svg id="loginSpinner" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display: none; margin-right: 8px;">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span id="loginButtonText" data-translate="Login">Login</span>
-            </button>
+          <!-- Submit Button -->
+          <div class="form-field flex justify-center">
+            {{ form.submit(class="bg-red-600 hover:bg-red-700 text-white py-3 lg:py-3.5 px-8 lg:text-base rounded-lg
+            font-semibold transition-all duration-200 shadow-lg", style="width: 100%; max-width: 200px;", **{"data-translate": "Login"}) }}
           </div>
           <style>
             @media (min-width: 1024px) {
-              button[type="submit"] {
+              button[type="submit"], input[type="submit"] {
                 max-width: 320px !important;
               }
             }
@@ -193,39 +166,6 @@
     // Remove all spaces from the input value
     input.value = input.value.replace(/\s/g, '');
   }
-
-  // Login form submission with loading animation
-  document.getElementById('loginForm').addEventListener('submit', function(e) {
-    const loginButton = document.getElementById('loginButton');
-    const loginSpinner = document.getElementById('loginSpinner');
-    const loginButtonText = document.getElementById('loginButtonText');
-    
-    // Disable button
-    loginButton.disabled = true;
-    loginButton.style.opacity = '0.7';
-    loginButton.style.cursor = 'not-allowed';
-    
-    // Show spinner
-    loginSpinner.style.display = 'inline-block';
-    
-    // Change text to "Logging in..." with proper translation
-    loginButtonText.setAttribute('data-translate', 'Logging in...');
-    
-    // Get current language from localStorage (key is 'language' not 'selectedLanguage')
-    const currentLang = localStorage.getItem('language') || 'my';
-    
-    // Apply translation immediately
-    if (window.translations && window.translations['Logging in...']) {
-      loginButtonText.textContent = window.translations['Logging in...'][currentLang];
-    } else {
-      // Fallback if translations not loaded yet
-      if (currentLang === 'my') {
-        loginButtonText.textContent = 'လော့ဂ်အင်ဝင်နေသည်...';
-      } else {
-        loginButtonText.textContent = 'Logging in...';
-      }
-    }
-  });
 </script>
 
 {% endblock %}

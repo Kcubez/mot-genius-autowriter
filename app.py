@@ -4,16 +4,22 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, SubmitField
-from wtforms.validators import DataRequired, Length
+from wtforms.validators import DataRequired, Length, Email, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 import logging
+import json
+import math
 import google.generativeai as genai
 import PIL.Image
 from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Myanmar timezone (UTC+6:30)
 from datetime import timezone, timedelta
@@ -30,6 +36,15 @@ def to_myanmar_time(utc_datetime):
     if utc_datetime.tzinfo is None:
         utc_datetime = utc_datetime.replace(tzinfo=timezone.utc)
     return utc_datetime.astimezone(MYANMAR_TZ)
+
+
+def format_datetime_iso(dt):
+    """Return an ISO8601 string in UTC (Z suffix) for frontend consumption."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
 
 app = Flask(__name__)
 project_folder = os.path.dirname(os.path.abspath(__file__))
@@ -75,6 +90,8 @@ app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "a-very-secret-key-for-
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config['WTF_CSRF_ENABLED'] = True
+app.config['FAVICON_VERSION'] = '3.0'  # Increment this to force favicon refresh
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB limit
 
 # Database connection pool settings for better reliability
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -94,7 +111,8 @@ login_manager.init_app(app)
 # Database Models
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    api_key = db.Column(db.Text, nullable=True)  # Store user's Gemini API key
     password_hash = db.Column(db.String(120), nullable=False)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -102,6 +120,10 @@ class User(UserMixin, db.Model):
     failed_login_attempts = db.Column(db.Integer, default=0, nullable=False)
     last_failed_login = db.Column(db.DateTime, nullable=True)
     locked_until = db.Column(db.DateTime, nullable=True)
+    content_count = db.Column(db.Integer, default=0, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    user_type = db.Column(db.String(20), default='normal', nullable=True)
+    subscription_duration = db.Column(db.String(20), nullable=True)
     contents = db.relationship('Content', backref='author', lazy=True, cascade='all, delete-orphan')
     
     def is_account_locked(self):
@@ -151,20 +173,98 @@ class User(UserMixin, db.Model):
             else:
                 return self.locked_until.astimezone(MYANMAR_TZ)
         return None
+    
+    def is_account_expired(self):
+        """Check if account has expired"""
+        if not self.expires_at or self.is_admin:
+            return False
+        current_time = datetime.now(timezone.utc)
+        if self.expires_at.tzinfo is None:
+            expires_at_utc = self.expires_at.replace(tzinfo=timezone.utc)
+        else:
+            expires_at_utc = self.expires_at.astimezone(timezone.utc)
+        return expires_at_utc <= current_time
+    
+    def can_generate_content(self):
+        """Check if user can generate more content - all users have unlimited"""
+        return True
+    
+    def get_remaining_content_count(self):
+        """Get remaining content generation count - unlimited for all"""
+        if self.is_admin:
+            return float('inf')
+        return float('inf')
+    
+    def get_remaining_content_count_json(self):
+        """Get remaining content generation count in JSON-safe format"""
+        return "unlimited"
+    
+    def get_expires_at_myanmar(self):
+        """Get expires_at time in Myanmar timezone for display"""
+        if self.expires_at:
+            if self.expires_at.tzinfo is None:
+                expires_at_utc = self.expires_at.replace(tzinfo=timezone.utc)
+                return expires_at_utc.astimezone(MYANMAR_TZ)
+            else:
+                return self.expires_at.astimezone(MYANMAR_TZ)
+        return None
+    
+    def set_expiration_from_duration(self):
+        """Set expires_at based on subscription_duration"""
+        if not self.subscription_duration or self.is_admin:
+            return
+        
+        current_time = datetime.now(timezone.utc)
+        
+        duration_map = {
+            '1day': timedelta(days=1),
+            '7days': timedelta(days=7),
+            '1month': timedelta(days=30),
+            '3months': timedelta(days=90),
+            '6months': timedelta(days=180),
+            '1year': timedelta(days=365)
+        }
+        
+        if self.subscription_duration in duration_map:
+            self.expires_at = current_time + duration_map[self.subscription_duration]
+    
+    def get_user_type_display(self):
+        """Get user type for display"""
+        if self.is_admin:
+            return 'Admin'
+        return 'Normal User'
+    
+    def get_subscription_display(self):
+        """Get subscription duration for display"""
+        if not self.subscription_duration:
+            return 'N/A'
+        
+        display_map = {
+            '1day': '1 Day',
+            '7days': '7 Days',
+            '1month': '1 Month',
+            '3months': '3 Months',
+            '6months': '6 Months',
+            '1year': '1 Year'
+        }
+        
+        return display_map.get(self.subscription_duration, self.subscription_duration)
 
 class Content(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    purpose = db.Column(db.String(500), nullable=True)
+    purpose = db.Column(db.Text, nullable=True)
     writing_style = db.Column(db.String(100), nullable=True)
-    audience = db.Column(db.String(500), nullable=True)
-    keywords = db.Column(db.String(500), nullable=True)
-    hashtags = db.Column(db.String(500), nullable=True)
-    cta = db.Column(db.String(500), nullable=True)
+    audience = db.Column(db.Text, nullable=True)
+    keywords = db.Column(db.Text, nullable=True)
+    hashtags = db.Column(db.Text, nullable=True)
+    cta = db.Column(db.Text, nullable=True)
     negative_constraints = db.Column(db.Text, nullable=True)
+    reference_links = db.Column(db.Text, nullable=True)  # Store as JSON string
     image_path = db.Column(db.String(500), nullable=True)
+    published = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -182,16 +282,34 @@ def load_user(user_id):
             logging.error(f"Retry failed for user {user_id}: {retry_error}")
             return None
 
+# Custom validator for Gmail addresses
+def validate_gmail(form, field):
+    if not field.data.lower().endswith('@gmail.com'):
+        raise ValidationError('Please use a Gmail address (@gmail.com)')
+
+# Custom validator for password (no spaces)
+def validate_password_no_spaces(form, field):
+    if ' ' in field.data:
+        raise ValidationError('Password cannot contain spaces')
+
 # Forms
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
-    password = PasswordField('Password', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email(), validate_gmail])
+    password = PasswordField('Password', validators=[DataRequired(), validate_password_no_spaces], render_kw={"placeholder": "Enter your password"})
+    api_key = StringField('Gemini API Key', render_kw={"placeholder": "Enter your Gemini API Key"})
     submit = SubmitField('Login')
 
+class AdminLoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email(), validate_gmail])
+    password = PasswordField('Password', validators=[DataRequired(), validate_password_no_spaces], render_kw={"placeholder": "Enter your password"})
+    submit = SubmitField('Admin Login')
+
 class UserForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    email = StringField('Email', validators=[DataRequired(), Email(), validate_gmail])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6), validate_password_no_spaces], render_kw={"placeholder": "Enter password (minimum 6 characters)"})
+    user_type = SelectField('User Type', choices=[('trial', 'Trial User'), ('normal', 'Normal User')], default='trial')
     is_admin = SelectField('Role', choices=[('False', 'User'), ('True', 'Admin')], default='False')
+    expiration_date = StringField('Expiration Date', render_kw={"type": "date", "placeholder": "Select expiration date"})
     submit = SubmitField('Create User')
 
 
@@ -296,7 +414,7 @@ def login():
     
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data).first()
+        user = User.query.filter_by(email=form.email.data.lower()).first()
         
         if user:
             # Check if account is locked
@@ -311,12 +429,27 @@ def login():
             
             # Check password
             if bcrypt.check_password_hash(user.password_hash, form.password.data):
-                # Successful login - reset failed attempts
+                # Redirect admins to admin login
+                if user.is_admin:
+                    flash('Please use admin login for administrative access.', 'info')
+                    return redirect(url_for('admin_login'))
+                
+                # Successful login - reset failed attempts and store API key
                 user.reset_failed_attempts()
+                
+                # API key is required for regular users
+                if not form.api_key.data:
+                    flash('API key is required for regular users', 'error')
+                    return redirect(url_for('login', login_error='true', message='API key is required for regular users'))
+                
+                # Store API key
+                user.api_key = form.api_key.data
+                db.session.commit()
+                
                 login_user(user, remember=True)
-                flash(f'Welcome back, {user.username}!', 'success')
+                flash(f'Welcome back, {user.email}!', 'success')
                 # Add URL parameter for toast notification
-                return redirect(url_for('index', login_success='true', username=user.username))
+                return redirect(url_for('index', login_success='true', username=user.email))
             else:
                 # Failed password - record attempt
                 user.record_failed_login()
@@ -329,19 +462,78 @@ def login():
                     flash(f'Invalid password. {remaining_attempts} attempts remaining before account deactivation.', 'error')
                     return redirect(url_for('login', login_error='true', message=f'Invalid password. {remaining_attempts} attempts remaining'))
         else:
-            flash('Invalid username or password', 'error')
-            return redirect(url_for('login', login_error='true', message='Invalid username or password'))
+            flash('Invalid email or password', 'error')
+            return redirect(url_for('login', login_error='true', message='Invalid email or password'))
     
     return render_template('login.html', form=form)
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+@handle_db_errors
+def admin_login():
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('user_dashboard'))
+    
+    form = AdminLoginForm()
+    
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data.lower()).first()
+        
+        if user:
+            # Check if account is locked
+            if user.is_account_locked():
+                flash('Account is temporarily locked due to multiple failed login attempts. Please try again later.', 'error')
+                return redirect(url_for('admin_login', login_error='true', message='Account is temporarily locked due to multiple failed login attempts'))
+            
+            # Check if account is deactivated
+            if not user.is_active:
+                flash('Your account has been deactivated. Please contact an administrator.', 'error')
+                return redirect(url_for('admin_login', login_error='true', message='Your account has been deactivated. Please contact an administrator'))
+            
+            # Only allow admin users
+            if not user.is_admin:
+                flash('Access denied. Admin privileges required.', 'error')
+                return redirect(url_for('admin_login', login_error='true', message='Access denied. Admin privileges required'))
+            
+            # Check password
+            if bcrypt.check_password_hash(user.password_hash, form.password.data):
+                # Successful login - reset failed attempts
+                user.reset_failed_attempts()
+                db.session.commit()
+                
+                login_user(user, remember=True)
+                flash(f'Welcome back, Admin {user.email}!', 'success')
+                return redirect(url_for('admin_dashboard', login_success='true', username=user.email))
+            else:
+                # Failed password - record attempt
+                user.record_failed_login()
+                remaining_attempts = 3 - user.failed_login_attempts
+                
+                if user.failed_login_attempts >= 3:
+                    flash('Account deactivated due to 3 failed login attempts. Please contact an administrator.', 'error')
+                    return redirect(url_for('admin_login', login_error='true', message='Account deactivated due to 3 failed login attempts'))
+                else:
+                    flash(f'Invalid password. {remaining_attempts} attempts remaining before account deactivation.', 'error')
+                    return redirect(url_for('admin_login', login_error='true', message=f'Invalid password. {remaining_attempts} attempts remaining'))
+        else:
+            flash('Invalid email or password', 'error')
+            return redirect(url_for('admin_login', login_error='true', message='Invalid email or password'))
+    
+    return render_template('admin_login.html', form=form)
 
 @app.route('/logout')
 @login_required
 def logout():
-    username = current_user.username
+    user_email = current_user.email
+    is_admin = current_user.is_admin
     logout_user()
-    flash(f'Goodbye {username}! You have been logged out successfully.', 'success')
+    flash(f'Goodbye {user_email}! You have been logged out successfully.', 'success')
     # Add URL parameter for toast notification
-    return redirect(url_for('login', logout_success='true', username=username))
+    if is_admin:
+        return redirect(url_for('admin_login', logout_success='true', username=user_email))
+    return redirect(url_for('login', logout_success='true', username=user_email))
 
 @app.route('/admin')
 @login_required
@@ -360,7 +552,7 @@ def admin_dashboard():
     query = User.query
     
     if search:
-        query = query.filter(User.username.contains(search))
+        query = query.filter(User.email.contains(search))
     
     if filter_status == 'active':
         query = query.filter(User.is_active == True)
@@ -392,24 +584,97 @@ def create_user():
     
     form = UserForm()
     if form.validate_on_submit():
-        # Check if username already exists
-        existing_user = User.query.filter_by(username=form.username.data).first()
+        # Check if email already exists (case-insensitive)
+        existing_email = User.query.filter_by(email=form.email.data.lower()).first()
         
-        if existing_user:
-            flash('Username already exists', 'error')
-            return redirect(url_for('create_user', user_error='true', message='Username already exists'))
+        if existing_email:
+            flash('Email already exists', 'error')
+            return redirect(url_for('create_user', user_error='true', message='Email already exists'))
         else:
             password_hash = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-            user = User(
-                username=form.username.data,
-                password_hash=password_hash,
-                is_admin=(form.is_admin.data == 'True')
-            )
-            db.session.add(user)
-            db.session.commit()
-            flash(f'User {form.username.data} created successfully', 'success')
-            # Add URL parameter for toast notification
-            return redirect(url_for('admin_dashboard', user_created='true', username=form.username.data))
+            is_admin = (form.is_admin.data == 'True')
+            user_type = 'normal'  # Always create normal users
+            
+            # Set expiration date based on user type
+            expires_at = None
+            subscription_duration = None
+            
+            if not is_admin:
+                # Normal users: use selected expiration date
+                expiration_date_str = form.expiration_date.data
+                
+                if not expiration_date_str:
+                    flash('Expiration date is required', 'error')
+                    return redirect(url_for('create_user'))
+                
+                try:
+                    # Parse the date (format: YYYY-MM-DD)
+                    expiry_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+                    
+                    # Validate not in the past
+                    myanmar_now = get_myanmar_time()
+                    if expiry_date.date() < myanmar_now.date():
+                        flash('Expiration date cannot be in the past', 'error')
+                        return redirect(url_for('create_user'))
+                    
+                    # Set to end of day in Myanmar timezone (23:59:59)
+                    myanmar_expiry = datetime.combine(
+                        expiry_date.date(), 
+                        datetime.max.time()
+                    ).replace(tzinfo=MYANMAR_TZ)
+                    
+                    # Convert to UTC for database storage
+                    expires_at = myanmar_expiry.astimezone(timezone.utc).replace(tzinfo=None)
+                    
+                    # Calculate duration for display
+                    days_diff = (expiry_date.date() - myanmar_now.date()).days
+                    if days_diff <= 7:
+                        subscription_duration = f'{days_diff}days'
+                    elif days_diff <= 31:
+                        subscription_duration = '1month'
+                    elif days_diff <= 93:
+                        subscription_duration = '3months'
+                    elif days_diff <= 186:
+                        subscription_duration = '6months'
+                    else:
+                        subscription_duration = '1year'
+                    
+                    logging.info(f"Normal user expiration set to: {expires_at} (Myanmar: {myanmar_expiry})")
+                    
+                except ValueError as e:
+                    logging.error(f"Date parsing error: {e}")
+                    flash(f'Invalid date format: {e}', 'error')
+                    return redirect(url_for('create_user'))
+                except Exception as e:
+                    logging.error(f"Error setting expiration date: {e}")
+                    flash(f'Error setting expiration date: {str(e)}', 'error')
+                    return redirect(url_for('create_user'))
+            
+            try:
+                user = User(
+                    email=form.email.data.lower(),
+                    password_hash=password_hash,
+                    is_admin=is_admin,
+                    user_type=user_type,
+                    subscription_duration=subscription_duration,
+                    expires_at=expires_at
+                )
+                
+                logging.info(f"Creating user: {form.email.data}, type: {user_type}, expires_at: {expires_at}")
+                
+                db.session.add(user)
+                db.session.commit()
+                
+                logging.info(f"User {form.email.data} created successfully in database")
+                flash(f'User {form.email.data} created successfully', 'success')
+                # Add URL parameter for toast notification
+                return redirect(url_for('admin_dashboard', user_created='true', username=form.email.data))
+                
+            except Exception as e:
+                db.session.rollback()
+                logging.error(f"Database error creating user: {e}")
+                flash(f'Error creating user: {str(e)}', 'error')
+                return redirect(url_for('create_user'))
     
     return render_template('create_user.html', form=form)
 
@@ -432,11 +697,11 @@ def toggle_user_status(user_id):
         db.session.commit()
         
         status = 'activated' if user.is_active else 'deactivated'
-        print(f"User {user.username} (ID: {user_id}) {status} by admin {current_user.username}")
+        print(f"User {user.email} (ID: {user_id}) {status} by admin {current_user.email}")
         
         return jsonify({
             'success': True, 
-            'message': f'User {user.username} {status} successfully',
+            'message': f'User {user.email} {status} successfully',
             'new_status': user.is_active
         })
     except Exception as e:
@@ -463,17 +728,128 @@ def reset_user_attempts(user_id):
             user.is_active = True
             db.session.commit()
         
-        print(f"Admin {current_user.username} reset failed attempts for user {user.username} (was: {old_attempts})")
+        print(f"Admin {current_user.email} reset failed attempts for user {user.email} (was: {old_attempts})")
         
         return jsonify({
             'success': True, 
-            'message': f'Failed login attempts reset for {user.username}',
+            'message': f'Failed login attempts reset for {user.email}',
             'was_reactivated': not user.is_active and user.locked_until is not None
         })
     except Exception as e:
         db.session.rollback()
         print(f"Error resetting user attempts: {e}")
         return jsonify({'error': 'Database error occurred'}), 500
+
+@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Prevent editing self (security measure)
+    if user.id == current_user.id:
+        return jsonify({'error': 'Cannot edit your own account'}), 400
+    
+    # GET request - return user data
+    if request.method == 'GET':
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'user_type': user.user_type or 'normal',
+                'subscription_duration': user.subscription_duration if hasattr(user, 'subscription_duration') else None,
+                'expires_at': user.expires_at.strftime('%Y-%m-%d') if user.expires_at else None,
+                'is_active': user.is_active
+            }
+        })
+    
+    # POST request - update user data
+    try:
+        data = request.get_json()
+        
+        # Validate and update email
+        new_email = data.get('email', '').lower().strip()
+        if new_email and new_email != user.email:
+            # Check if email already exists
+            existing_user = User.query.filter_by(email=new_email).first()
+            if existing_user:
+                return jsonify({'error': 'Email already exists'}), 400
+            user.email = new_email
+        
+        # Update password if provided
+        new_password = data.get('password', '').strip()
+        if new_password:
+            if len(new_password) < 6:
+                return jsonify({'error': 'Password must be at least 6 characters'}), 400
+            if ' ' in new_password:
+                return jsonify({'error': 'Password cannot contain spaces'}), 400
+            user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+        
+        # Update user type - always set to 'normal' since we removed trial option
+        user.user_type = 'normal'
+        
+        # Get expiration date from request
+        expiration_date_str = data.get('expiration_date')
+        
+        if not expiration_date_str:
+            return jsonify({'error': 'Expiration date is required'}), 400
+        
+        try:
+            # Parse the date
+            expiry_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+            
+            # Validate not in the past
+            myanmar_now = get_myanmar_time()
+            if expiry_date.date() < myanmar_now.date():
+                return jsonify({'error': 'Expiration date cannot be in the past'}), 400
+            
+            # Set to end of day in Myanmar timezone
+            myanmar_expiry = datetime.combine(
+                expiry_date.date(),
+                datetime.max.time()
+            ).replace(tzinfo=MYANMAR_TZ)
+            
+            user.expires_at = myanmar_expiry.astimezone(timezone.utc).replace(tzinfo=None)
+            
+            # Calculate duration for display
+            days_diff = (expiry_date.date() - myanmar_now.date()).days
+            if days_diff <= 7:
+                user.subscription_duration = f'{days_diff}days'
+            elif days_diff <= 31:
+                user.subscription_duration = '1month'
+            elif days_diff <= 93:
+                user.subscription_duration = '3months'
+            elif days_diff <= 186:
+                user.subscription_duration = '6months'
+            else:
+                user.subscription_duration = '1year'
+                    
+        except ValueError as e:
+            return jsonify({'error': f'Invalid date format: {str(e)}'}), 400
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'User updated successfully',
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'user_type': user.user_type,
+                'subscription_duration': user.subscription_duration if hasattr(user, 'subscription_duration') else None,
+                'expires_at': user.expires_at.strftime('%Y-%m-%d') if user.expires_at else None
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating user: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/admin/users/<int:user_id>/delete', methods=['DELETE'])
 @login_required
@@ -492,6 +868,59 @@ def delete_user(user_id):
 @app.route('/dashboard')
 @login_required
 @handle_db_errors
+def contents_dashboard():
+    """New contents dashboard with published/draft filtering"""
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    contents_query = Content.query.filter_by(user_id=current_user.id).order_by(Content.created_at.desc())
+    total_count = contents_query.count()
+    total_pages = max(1, math.ceil(total_count / per_page))
+    page = max(1, min(page, total_pages))
+    offset = (page - 1) * per_page
+    contents = contents_query.offset(offset).limit(per_page).all()
+    published_count = contents_query.filter_by(published=True).count()
+    drafts_count = total_count - published_count
+    page_numbers = _build_page_numbers(page, total_pages)
+    
+    return render_template(
+        'contents_dashboard.html',
+        contents=contents,
+        total_count=total_count,
+        published_count=published_count,
+        drafts_count=drafts_count,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        has_prev=page > 1,
+        has_next=page < total_pages,
+        prev_page=page - 1,
+        next_page=page + 1,
+        page_numbers=page_numbers,
+        current_page_count=len(contents),
+        format_datetime_iso=format_datetime_iso
+    )
+
+
+def _build_page_numbers(current_page, total_pages):
+    if total_pages <= 5:
+        return list(range(1, total_pages + 1))
+    start = max(1, current_page - 2)
+    end = min(total_pages, current_page + 2)
+    while (end - start) < 4:
+        if start > 1:
+            start -= 1
+        elif end < total_pages:
+            end += 1
+        else:
+            break
+    return list(range(start, end + 1))
+
+@app.route('/contents')
+@login_required
+@handle_db_errors
 def user_dashboard():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
@@ -502,31 +931,6 @@ def user_dashboard():
     return render_template('user_dashboard.html', 
                          recent_contents=recent_contents,
                          total_contents=total_contents)
-
-@app.route('/contents')
-@login_required
-@handle_db_errors
-def content_history():
-    page = request.args.get('page', 1, type=int)
-    search = request.args.get('search', '', type=str)
-    
-    # Build query with search
-    query = Content.query.filter_by(user_id=current_user.id)
-    
-    if search:
-        query = query.filter(
-            db.or_(
-                Content.title.contains(search),
-                Content.content.contains(search),
-                Content.purpose.contains(search)
-            )
-        )
-    
-    contents = query.order_by(Content.created_at.desc()).paginate(
-        page=page, per_page=10, error_out=False
-    )
-    
-    return render_template('content_history.html', contents=contents, search=search)
 
 @app.route('/contents/save', methods=['POST'])
 @login_required
@@ -543,6 +947,7 @@ def save_content():
         hashtags = request.form.get('hashtags', '')
         cta = request.form.get('cta', '')
         negative_constraints = request.form.get('negative_constraints', '')
+        reference_links = request.form.get('reference_links', '[]')
         
         if not title or not content_text:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -557,7 +962,8 @@ def save_content():
             keywords=keywords,
             hashtags=hashtags,
             cta=cta,
-            negative_constraints=negative_constraints
+            negative_constraints=negative_constraints,
+            reference_links=reference_links
         )
         db.session.add(content)
         db.session.commit()
@@ -579,41 +985,68 @@ def save_content():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/contents/<int:content_id>')
+@app.route('/api/contents/<int:content_id>/toggle-publish', methods=['POST'])
 @login_required
-def view_content(content_id):
-    content = db.session.get(Content, content_id)
-    if not content or content.user_id != current_user.id:
-        flash('Content not found', 'error')
-        return redirect(url_for('content_history'))
-    
-    return render_template('view_content.html', content=content)
-
-@app.route('/contents/<int:content_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_content(content_id):
-    content = db.session.get(Content, content_id)
-    if not content or content.user_id != current_user.id:
-        flash('Content not found', 'error')
-        return redirect(url_for('content_history'))
-    
-    if request.method == 'POST':
-        content.title = request.form.get('title', content.title)
-        content.content = request.form.get('content', content.content)
-        content.purpose = request.form.get('purpose', content.purpose)
-        content.writing_style = request.form.get('writing_style', content.writing_style)
-        content.audience = request.form.get('audience', content.audience)
-        content.keywords = request.form.get('keywords', content.keywords)
-        content.hashtags = request.form.get('hashtags', content.hashtags)
-        content.cta = request.form.get('cta', content.cta)
-        content.negative_constraints = request.form.get('negative_constraints', content.negative_constraints)
-        content.updated_at = datetime.utcnow()
+def toggle_publish_status(content_id):
+    """Toggle the published status of a content"""
+    try:
+        content = db.session.get(Content, content_id)
         
+        if not content or content.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Content not found'}), 404
+        
+        # Get the new published status from request
+        data = request.get_json()
+        new_status = data.get('published', False)
+        
+        # Update the published status
+        content.published = new_status
         db.session.commit()
-        flash('Content updated successfully', 'success')
-        return redirect(url_for('view_content', content_id=content.id))
-    
-    return render_template('edit_content.html', content=content)
+        
+        return jsonify({
+            'success': True,
+            'published': content.published,
+            'message': 'Content status updated successfully'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error toggling publish status: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/contents/<int:content_id>', methods=['GET'])
+@login_required
+def get_content_api(content_id):
+    """Get content details via API"""
+    try:
+        content = db.session.get(Content, content_id)
+        
+        if not content or content.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Content not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'content': {
+                'id': content.id,
+                'title': content.title,
+                'content': content.content,
+                'purpose': content.purpose,
+                'writing_style': content.writing_style,
+                'audience': content.audience,
+                'keywords': content.keywords,
+                'hashtags': content.hashtags,
+                'cta': content.cta,
+                'negative_constraints': content.negative_constraints,
+                'reference_links': content.reference_links,
+                'published': content.published,
+                'created_at': format_datetime_iso(content.created_at),
+                'updated_at': format_datetime_iso(content.updated_at)
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting content: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/contents/<int:content_id>/delete', methods=['DELETE'])
 @login_required
@@ -633,19 +1066,101 @@ def delete_content(content_id):
     db.session.commit()
     return jsonify({'success': True, 'message': 'Content deleted successfully'})
 
+@app.route('/api/contents/<int:content_id>/update', methods=['POST'])
+@login_required
+def update_content_api(content_id):
+    """Update content via API"""
+    try:
+        content = db.session.get(Content, content_id)
+        
+        if not content or content.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Content not found'}), 404
+        
+        data = request.get_json()
+        title = data.get('title', '').strip()
+        content_text = data.get('content', '').strip()
+        
+        if not title or not content_text:
+            return jsonify({'success': False, 'error': 'Title and content are required'}), 400
+        
+        content.title = title
+        content.content = content_text
+        content.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Content updated successfully'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error updating content: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-api-key', methods=['POST'])
+@login_required
+def update_api_key():
+    """Allow authenticated users to update their Gemini API key."""
+    try:
+        data = request.get_json() or {}
+        api_key = (data.get('apiKey') or '').strip()
+
+        if not api_key:
+            return jsonify({'success': False, 'error': 'API key is required.'}), 400
+
+        if len(api_key) > 512:
+            return jsonify({'success': False, 'error': 'API key is too long.'}), 400
+
+        user = db.session.get(User, current_user.id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found.'}), 404
+
+        user.api_key = api_key
+        db.session.commit()
+
+        logging.info(f"User {user.email} updated their API key")
+        return jsonify({'success': True})
+    except Exception as e:
+        logging.error(f"Error updating API key: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to update API key.'}), 500
+
+
 @app.route('/generate-content', methods=['POST'])
 @login_required
 def generate_content():
     try:
         logging.info("Generate content request received")
-        # Check if Gemini model is available
-        if model is None:
-            logging.error("Gemini model is None - API not configured")
-            return jsonify({'error': 'Gemini API is not configured. Please check your API key.'}), 500
+        # Check if user has API key (required for content generation)
+        if not current_user.api_key:
+            if current_user.is_admin:
+                logging.error("Admin user has no API key configured")
+                return jsonify({'error': 'Admin users need to provide a Gemini API key to generate content. Please update your profile or login again with an API key.'}), 400
+            else:
+                logging.error("User has no API key configured")
+                return jsonify({'error': 'Please login with your Gemini API key to generate content.'}), 400
+        
+        # Configure Gemini with user's API key
+        try:
+            genai.configure(api_key=current_user.api_key)
+            user_model = genai.GenerativeModel('gemini-2.5-flash')
+            logging.info("User's Gemini API configured successfully")
+        except Exception as api_error:
+            logging.error(f"Error configuring user's API key: {api_error}")
+            return jsonify({'error': 'Invalid API key. Please check your Gemini API key.'}), 400
         # request.form is used for multipart/form-data
         data = request.form
+        page_name = data.get('pageName', '')
         prompt = data.get('prompt', '')
         purpose = data.get('purpose', '')
+        
+        # Validate required fields
+        if not page_name.strip():
+            return jsonify({'error': 'Page Name လိုအပ်ပါတယ်။ Facebook Page သို့မဟုတ် Brand အမည် ထည့်ပါ။'}), 400
+        
+        if not prompt.strip():
+            return jsonify({'error': 'Topic လိုအပ်ပါတယ်။ Content ၏ အဓိက အကြောင်းအရာ ထည့်ပါ။'}), 400
         writing_style = data.get('writingStyle', '')
         audience = data.get('audience', '')
         word_count = data.get('wordCount', '')
@@ -653,20 +1168,18 @@ def generate_content():
         hashtags = data.get('hashtags', '')
         cta = data.get('cta', '')
         negative_constraints = data.get('negativeConstraints', '')
-        copywriting_model = data.get('copywritingModel', 'none')
         language = data.get('language', 'myanmar')
+        
+        # Get reference links
+        reference_links_json = data.get('referenceLinks', '[]')
+        try:
+            reference_links = json.loads(reference_links_json) if reference_links_json else []
+        except:
+            reference_links = []
+        
+        # Get emoji toggle state
+        include_emojis = data.get('includeEmojis', 'true').lower() == 'true'
 
-        model_instructions = {
-            'AIDA': "using the AIDA (Attention, Interest, Desire, Action) framework",
-            'PAS': "using the PAS (Problem, Agitate, Solution) framework",
-            'FAB': "using the FAB (Features, Advantages, Benefits) framework",
-            '4Ps': "using the 4 P's (Picture, Promise, Prove, Push) framework",
-            'BAB': "using the BAB (Before, After, Bridge) framework",
-            'none': ""
-        }
-        
-        model_instruction = model_instructions.get(copywriting_model, "")
-        
         # Set language instruction
         language_instructions = {
             'myanmar': "The response must be in the Burmese (Myanmar) language.",
@@ -674,17 +1187,61 @@ def generate_content():
         }
         language_instruction = language_instructions.get(language, "The response must be in the Burmese (Myanmar) language.")
 
-        # Construct a more detailed prompt
-        enhanced_prompt = f"""You are a 10 years experience social media content writer. Directly generate a social media post {model_instruction}. Do not include any introductory phrases, explanations, or preambles. {language_instruction}
-        Topic: {prompt}
-        Purpose: {purpose}
-        Writing Style: {writing_style}
-        Target Audience: {audience}
-        Word Count: Approximately {word_count} words
-        Keywords to include: {keywords}
-        Hashtags to include: {hashtags}
-        Call to Action: {cta}
-        Avoid/Don't include: {negative_constraints}
+        # Construct reference links section
+        reference_section = ""
+        if reference_links:
+            reference_section = f"\nReference Links (use these as inspiration and reference):\n"
+            for i, link in enumerate(reference_links, 1):
+                reference_section += f"{i}. {link}\n"
+            reference_section += "\nPlease use the information from these links as reference to create more relevant and informed content."
+
+        # Construct emoji instruction based on toggle and word count
+        emoji_instruction = ""
+        if include_emojis:
+            # Dynamic emoji count based on word count
+            word_count_int = int(word_count) if word_count.isdigit() else 300
+            if word_count_int <= 100:
+                emoji_count = "1-2"
+            elif word_count_int <= 200:
+                emoji_count = "2-4"
+            else:
+                emoji_count = "3-6"
+            
+            emoji_instruction = f"\n\nIMPORTANT: Include appropriate emojis naturally throughout the content to make it more engaging and visually appealing. Use emojis that are relevant to the topic and context, but don't overuse them - aim for {emoji_count} well-placed emojis for this {word_count_int}-word post."
+        else:
+            emoji_instruction = "\n\nIMPORTANT: Do NOT include any emojis in the content. Generate clean text content without any emoji symbols."
+
+        # Content style examples for each purpose type
+        content_style_examples = {
+            'informative': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nMOT Genius Auto Writer: Content Generator တွေထဲက ထူးခြားတဲ့ ရွေးချယ်မှု 🎉\n\nContent Creation လောကမှာ အချိန်ကုန်သက်သာပြီး အရည်အသွေးမြင့်တဲ့ စာသားတွေ ထွက်ဖို့ဆိုတာ ခက်ခဲတဲ့အလုပ်တစ်ခုပါ။ ဒါပေမဲ့ MOT က ဖန်တီးထားတဲ့ \"Genius Auto Writer\" ဆိုတဲ့ Content Generator က ဒီအခက်အခဲတွေကို ဖြေရှင်းပေးနိုင်တဲ့ အဖြေတစ်ခု ဖြစ်လာပါတယ်။\n\nGenius Auto Writer ရဲ့ အားသာချက်တွေက ဘာတွေလဲ? 🤔\n\n၁။ အချိန်တိုအတွင်း Content ထွက်ခြင်း: စီးပွားရေးလုပ်ငန်းတွေ၊ Content Creator တွေအတွက် အရေးကြီးဆုံးက အချိန်ပါ။\n\n၂။ Purpose အမျိုးမျိုးနဲ့ ရွေးချယ်နိုင်ခြင်း: information ပေးချင်တာလား၊ ကိုယ့် brand ကို ကြေညာချင်တာလား၊ စတဲ့ Content ပုံစံ အမျိုးမျိုးအတွက် Template တွေ ပါဝင်ပါတယ်။\n\n၃။ Plagiarism ကင်းစင်တဲ့ Content: Unique ဖြစ်ပြီး Plagiarism ကင်းပါတယ်။\n\n#ContentGenerator #GeniusAutoWriter #ContentMarketing\n---\n""",
+            'engagement': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nContent အမြန်လိုနေတဲ့ သူတွေ လက်တွေ့ကြုံဖူးတဲ့ အခက်အခဲများ! 😩\n\nတစ်ခါတလေကျရင် Content Idea တွေက ဦးနှောက်ထဲမှာ ပြည့်ကျပ်နေပြီး လက်တွေ့ စာရေးတဲ့အခါ စကားလုံးတွေ တောင့်တင်း နေဖူးလား?\n\n👉 ဒီလို အချိန်ကုန်သက်သာစေဖို့ MOT က Genius Auto Writer ကို ဖန်တီးထားတာပါ။ 💥\n\nဒါဆို သိချင်တာလေး မေးကြည့်ပါရစေ...\n\n၁။ Content Generator က Workflow ကို ဘယ်လောက်အထိ မြန်စေမယ်လို့ ထင်ပါသလဲ? 🚀\n၂။ Content Quality ပိုင်းကို စိုးရိမ်မိတာမျိုး ရှိပါသလား?\n၃။ အမြန်ဆုံး ရေးချင်တဲ့ Content အမျိုးအစား က ဘာလဲ?\n\nComment မှာ ဝေမျှပေးခဲ့ဦးနော်။ 👇💬\n\n#ContentLife #WriterStruggle #MOTGenius\n---\n""",
+            'sales': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nအချိန်မရှိဘူးလား? Content အရည်အသွေး ကျမှာကို စိုးရိမ်နေလား? 😱\n\nBusiness အတွက်ဖြစ်ဖြစ်၊ Personal Brand အတွက်ဖြစ်ဖြစ်... Social Media မှာ နေ့တိုင်း Content တင်နေရတာဟာ အချိန်ကုန်၊ လူပင်ပန်း တဲ့ အလုပ်တစ်ခုပါ။\n\nGenius Auto Writer ကို ဘာလို့ သုံးသင့်လဲ?\n\n✅ Content ထုတ်လုပ်မှု 5X အထိ မြန်ဆန်လာမယ်\n✅ Plagiarism ကင်းစင်တဲ့ Original Content\n✅ SEO/Sales အတွက် Targeting စွမ်းအား မြင့်မားမယ် 🎯\n\nအခုပဲ စတင် အသုံးပြုပြီး Content Marketing ကို နောက်တစ်ဆင့် တက်လှမ်းလိုက်ပါ။ 👇\n\n#SalesCopy #ContentGenerator #DigitalMarketingTool\n---\n""",
+            'emotional': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nစာရေးချင်စိတ် အပြည့်နဲ့ ကွန်ပျူတာရှေ့ ထိုင်ချလိုက်ပေမဲ့... Screen က အလွတ်အတိုင်းပဲ ကျန်နေတဲ့အခါ ဘယ်လိုခံစားရလဲ? 😩\n\nစိတ်ကူးတွေက ရင်ထဲမှာ အစီအရီရှိနေတယ်။ ဒါပေမဲ့ လက်တွေ့ စာလုံးပေါင်းပြီး ရေးရတော့မယ့်အချိန်မှာ \"ဘယ်ကနေ စရမလဲ\" ဆိုတဲ့ မေးခွန်းက ကိုယ့်ကို အားအင်ကုန်ခမ်းစေတယ်။ 😔\n\nကျွန်တော်တို့ MOT အဖွဲ့သားတွေ ဒီခံစားချက်ကို နားလည်ပြီး Genius Auto Writer ကို ဖန်တီးခဲ့တာဖြစ်ပါတယ်။ 💡\n\n\"မရေးနိုင်ဘူး\" ဆိုတဲ့ ဝန်ထုပ်ဝန်ပိုးကို လွှတ်ချလိုက်ပါ။ 💖✍️\n\n#CreativeStruggles #StorytellingTool #ContentQuality\n---\n""",
+            'announcement': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\n🔥 Content Creator တွေ၊ Marketer တွေအတွက် အသုံးဝင်မယ့် tool လေးတစ်ခု! 🔥\n\nMOT ကနေ အခုပဲ မိတ်ဆက်လိုက်ပါပြီ။ \"Genius Auto Writer\" Content Generator!\n\n❌ စာရေးဖို့ အချိန်တွေ အများကြီး ပေးစရာ မလိုတော့ဘူး။\n❌ Idea မထွက်လို့ ခေါင်းခြောက်နေစရာ မလိုတော့ဘူး။\n\nGenius Auto Writer ရဲ့ ထူးခြားချက်က ဘာလဲ?\n\n✍️ Quality အကောင်းဆုံးနဲ့ တစ်ခါတည်း အသုံးပြုနိုင်တဲ့ Content များ\n🎯 Specific Targeting\n\n👉 ဒီနေ့ပဲ စမ်းသုံးကြည့်ပြီး ကိုယ့်ရဲ့ လုပ်ငန်းကို ပိုမို လွယ်ကူမြန်ဆန်၊ ထိရောက်အောင် ပြောင်းလဲလိုက်ပါ!\n\n#GeniusAutoWriter #MOT #ContentGenerator #NewProductLaunch\n---\n""",
+            'educational': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\n📣 Content ရေးသားမှုကို အဆင့်မြှင့်တင်ဖို့ Genius Auto Writer ကို ဘယ်လို ထိထိရောက်ရောက် သုံးမလဲ? (Step-by-Step Guide) 💡\n\nGenius Auto Writer အသုံးပြုနည်း အဆင့် (၃) ဆင့်:\n\nအဆင့် ၁။ Content Purpose ကို ရွေးပါ 🎯\nအဆင့် ၂။ Key Information တွေကို ထည့်သွင်းပါ ⌨️\nအဆင့် ၃။ Generate ကို နှိပ်ပြီး ချက်ချင်း အသုံးပြုပါ ✅\n\n#ContentWritingTips #DigitalMarketingMyanmar #GeniusAutoWriter\n---\n""",
+            'showcase': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\n⚡️ Content ရေးသားမှုကို စက္ကန့်ပိုင်းအတွင်း အပြီးသတ်ပေးမယ့် Genius Auto Writer ရဲ့ Live Demo! 🚀\n\nGenius Auto Writer ရဲ့ 'Premium Quality' Output ကို ကြည့်လိုက်ပါ! 👀\n\nဥပမာအနေနဲ့ Product အသစ်အတွက် Promotion Content:\n\nInputs: Purpose, Product Name, Key Benefits\nOutput: Professional Content with Hook, Body, CTA\n\n#GeniusAutoWriterDemo #MOTTech #ContentTool #ProductShowcase\n---\n"""
+        }
+        
+        # Get the example for the selected purpose
+        style_example = content_style_examples.get(purpose, "")
+
+        # Construct a more detailed prompt with style example reference
+        enhanced_prompt = f"""You are a 10 years experience social media content writer. Directly generate a social media post. Do not include any introductory phrases, explanations, or preambles. {language_instruction}{emoji_instruction}
+
+{style_example}
+
+IMPORTANT: Use the example above as a REFERENCE for style, format, structure, and tone. DO NOT copy the example content. Create NEW and ORIGINAL content based on the topic and requirements below, but follow the same writing style, formatting patterns, and engagement approach shown in the example.
+
+Page/Brand Name: {page_name}
+Topic: {prompt}
+Purpose: {purpose}
+Writing Style: {writing_style}
+Target Audience: {audience}
+Word Count: Approximately {word_count} words
+Keywords to include: {keywords}
+Hashtags to include: {hashtags}
+Call to Action: {cta}
+Avoid/Don't include: {negative_constraints}{reference_section}
         """
         
         # Check for an uploaded image
@@ -693,17 +1250,17 @@ def generate_content():
         logging.info(f"Image file: {image_file}, filename: {image_file.filename if image_file else 'None'}")
         
         if image_file and image_file.filename:
-            # Check file size (limit to 7MB for Vercel serverless)
+            # Check file size (limit to 4MB for better compatibility)
             image_file.stream.seek(0, 2)  # Seek to end
             file_size = image_file.stream.tell()
             image_file.stream.seek(0)  # Reset to beginning
             
             logging.info(f"Image file received: {image_file.filename}, size: {file_size} bytes")
             
-            # Check if file is too large (7MB limit)
-            if file_size > 7 * 1024 * 1024:  # 7MB
+            # Check if file is too large (4MB limit for better compatibility)
+            if file_size > 4 * 1024 * 1024:  # 4MB
                 logging.warning(f"Image file too large: {file_size} bytes")
-                return jsonify({'error': 'Image file is too large. Please use an image smaller than 7MB.'}), 400
+                return jsonify({'error': f'ပုံဖိုင်က အရမ်းကြီးလွန်းပါတယ်။ 4MB ထက်နည်းတဲ့ ပုံကို သုံးပါ။ သင့်ဖိုင်က {file_size / (1024*1024):.1f}MB ရှိပါတယ်။'}), 400
             
             try:
                 # Reset stream position to beginning
@@ -723,16 +1280,16 @@ def generate_content():
                 # Combine the text prompt and the image for the model
                 contents = [enhanced_prompt, img]
                 logging.info("Sending prompt and image to Gemini.")
-                response = model.generate_content(contents)
+                response = user_model.generate_content(contents)
             except Exception as img_error:
                 logging.error(f"Error processing image: {img_error}")
                 # Fall back to text-only if image processing fails
                 logging.info("Falling back to text-only prompt due to image error.")
-                response = model.generate_content(enhanced_prompt)
+                response = user_model.generate_content(enhanced_prompt)
         else:
             # If no image, proceed with text only
             logging.info("Sending text-only prompt to Gemini.")
-            response = model.generate_content(enhanced_prompt)
+            response = user_model.generate_content(enhanced_prompt)
 
         # Ensure response has text content
         if hasattr(response, 'text') and response.text:
@@ -752,6 +1309,16 @@ def generate_content():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+@app.route('/favicon.ico')
+def favicon():
+    response = send_from_directory(os.path.join(app.root_path, 'static', 'images'), 'MOT.d21a8f07.png', mimetype='image/png')
+    # Force no cache to always serve fresh favicon
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['ETag'] = f'favicon-v{app.config.get("FAVICON_VERSION", "2.0")}-{hash(str(__import__("time").time()))}'
+    return response
+
 @app.route('/test-toast')
 @login_required
 def test_toast():
@@ -761,45 +1328,131 @@ def test_toast():
     flash('This is a test warning message!', 'warning')
     return redirect(url_for('user_dashboard'))
 
+@app.route('/api/daily-cleanup', methods=['GET'])
+def daily_cleanup():
+    """Daily cron job to delete expired users from database (Vercel Cron)"""
+    try:
+        # No authentication needed - Vercel Cron is secure by default
+        
+        current_time = datetime.now(timezone.utc)
+        
+        # Delete expired users (both trial and normal)
+        expired_users = User.query.filter(
+            User.expires_at.isnot(None),
+            User.expires_at <= current_time,
+            User.is_admin == False
+        ).all()
+        
+        deleted_count = 0
+        deleted_emails = []
+        
+        for user in expired_users:
+            deleted_emails.append(user.email)
+            logging.info(f"Vercel cron cleanup: Deleting expired user: {user.email} (expired at: {user.expires_at})")
+            db.session.delete(user)
+            deleted_count += 1
+        
+        if deleted_count > 0:
+            db.session.commit()
+            logging.info(f"Vercel cron: Successfully deleted {deleted_count} expired user accounts")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Vercel cron cleanup completed',
+            'deleted_count': deleted_count,
+            'deleted_users': deleted_emails,
+            'timestamp': current_time.isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in Vercel cron cleanup: {e}")
+        db.session.rollback()
+        return jsonify({'error': 'Vercel cron cleanup failed', 'details': str(e)}), 500
+
 def create_admin_user():
     """Create default admin user if none exists"""
-    admin = User.query.filter_by(is_admin=True).first()
+    admin_email = os.getenv('ADMIN_EMAIL', 'admin@gmail.com')
+    admin_password = os.getenv('ADMIN_PASSWORD')
+    
+    if not admin_password:
+        logging.warning("ADMIN_PASSWORD not set in environment variables. Skipping admin user creation.")
+        return
+    
+    # Check if admin user already exists by email
+    admin = User.query.filter_by(email=admin_email).first()
     if not admin:
-        admin_username = os.getenv('ADMIN_USERNAME', 'admin')
-        admin_password = os.getenv('ADMIN_PASSWORD')
-        
-        if not admin_password:
-            logging.warning("ADMIN_PASSWORD not set in environment variables. Skipping admin user creation.")
-            return
-        
         password_hash = bcrypt.generate_password_hash(admin_password).decode('utf-8')
         admin = User(
-            username=admin_username,
+            email=admin_email,
             password_hash=password_hash,
             is_admin=True
         )
         db.session.add(admin)
         db.session.commit()
-        logging.info(f"Admin user created: username='{admin_username}'")
+        logging.info(f"Admin user created: email='{admin_email}'")
+    else:
+        logging.info(f"Admin user already exists: {admin_email}")
+
+def reset_database():
+    """Drop all tables and recreate them - USE WITH CAUTION"""
+    try:
+        logging.warning("RESETTING DATABASE - ALL DATA WILL BE LOST!")
+        db.drop_all()
+        db.create_all()
+        logging.info("Database reset complete - all tables recreated")
+        return True
+    except Exception as e:
+        logging.error(f"Error resetting database: {e}")
+        return False
 
 def migrate_database():
-    """Remove email column if it exists and add new content fields"""
+    """Add email and api_key columns to user table, remove username column, and update content fields"""
     try:
         with db.engine.connect() as conn:
-            # Remove email column from user table if it exists
+            # Add email column to user table if it doesn't exist
             result = conn.execute(db.text("""
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_name='user' AND column_name='email'
             """))
             
-            if result.fetchone():
-                logging.info("Removing email column from user table...")
-                conn.execute(db.text("ALTER TABLE \"user\" DROP COLUMN IF EXISTS email"))
+            if not result.fetchone():
+                logging.info("Adding email column to user table...")
+                conn.execute(db.text("ALTER TABLE \"user\" ADD COLUMN email VARCHAR(120) UNIQUE"))
                 conn.commit()
-                logging.info("Email column removed successfully")
+                logging.info("Email column added successfully")
             else:
-                logging.info("Email column does not exist, no migration needed")
+                logging.info("Email column already exists")
+            
+            # Add api_key column to user table if it doesn't exist
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='user' AND column_name='api_key'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding api_key column to user table...")
+                conn.execute(db.text("ALTER TABLE \"user\" ADD COLUMN api_key TEXT"))
+                conn.commit()
+                logging.info("API key column added successfully")
+            else:
+                logging.info("API key column already exists")
+            
+            # Remove username column if it exists (after ensuring email is populated)
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='user' AND column_name='username'
+            """))
+            
+            if result.fetchone():
+                logging.info("Removing username column from user table...")
+                conn.execute(db.text("ALTER TABLE \"user\" DROP COLUMN username"))
+                conn.commit()
+                logging.info("Username column removed successfully")
+            else:
+                logging.info("Username column already removed")
             
             # Add new fields to content table if they don't exist
             # Check for cta column
@@ -828,12 +1481,93 @@ def migrate_database():
                 conn.commit()
                 logging.info("Negative constraints column added successfully")
             
-            # Update purpose and audience column lengths if needed
-            logging.info("Updating purpose and audience column lengths...")
-            conn.execute(db.text("ALTER TABLE content ALTER COLUMN purpose TYPE VARCHAR(500)"))
-            conn.execute(db.text("ALTER TABLE content ALTER COLUMN audience TYPE VARCHAR(500)"))
+            # Check for reference_links column
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='content' AND column_name='reference_links'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding reference_links column to content table...")
+                conn.execute(db.text("ALTER TABLE content ADD COLUMN reference_links TEXT"))
+                conn.commit()
+                logging.info("Reference links column added successfully")
+            
+            # Update content table columns to TEXT for unlimited length
+            logging.info("Updating content table column types to TEXT...")
+            conn.execute(db.text("ALTER TABLE content ALTER COLUMN purpose TYPE TEXT"))
+            conn.execute(db.text("ALTER TABLE content ALTER COLUMN audience TYPE TEXT"))
+            conn.execute(db.text("ALTER TABLE content ALTER COLUMN keywords TYPE TEXT"))
+            conn.execute(db.text("ALTER TABLE content ALTER COLUMN hashtags TYPE TEXT"))
+            conn.execute(db.text("ALTER TABLE content ALTER COLUMN cta TYPE TEXT"))
             conn.commit()
-            logging.info("Column lengths updated successfully")
+            logging.info("Column types updated to TEXT successfully")
+            
+            # Add content_count column to user table
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='user' AND column_name='content_count'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding content_count column to user table...")
+                conn.execute(db.text("ALTER TABLE \"user\" ADD COLUMN content_count INTEGER DEFAULT 0 NOT NULL"))
+                conn.commit()
+                logging.info("content_count column added successfully")
+            
+            # Add expires_at column to user table
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='user' AND column_name='expires_at'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding expires_at column to user table...")
+                conn.execute(db.text("ALTER TABLE \"user\" ADD COLUMN expires_at TIMESTAMP"))
+                conn.commit()
+                logging.info("expires_at column added successfully")
+            
+            # Add user_type column to user table
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='user' AND column_name='user_type'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding user_type column to user table...")
+                conn.execute(db.text("ALTER TABLE \"user\" ADD COLUMN user_type VARCHAR(20) DEFAULT 'normal'"))
+                conn.commit()
+                logging.info("user_type column added successfully")
+            
+            # Add subscription_duration column to user table
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='user' AND column_name='subscription_duration'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding subscription_duration column to user table...")
+                conn.execute(db.text("ALTER TABLE \"user\" ADD COLUMN subscription_duration VARCHAR(20)"))
+                conn.commit()
+                logging.info("subscription_duration column added successfully")
+            
+            # Add published column to content table
+            result = conn.execute(db.text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='content' AND column_name='published'
+            """))
+            
+            if not result.fetchone():
+                logging.info("Adding published column to content table...")
+                conn.execute(db.text("ALTER TABLE content ADD COLUMN published BOOLEAN DEFAULT FALSE NOT NULL"))
+                conn.commit()
+                logging.info("published column added successfully")
             
     except Exception as e:
         logging.error(f"Migration failed: {e}")
@@ -848,6 +1582,7 @@ def init_db():
             migrate_database()
             create_admin_user()
             logging.info("Database tables created/updated.")
+            logging.info("User deletion handled by Vercel Cron (/api/daily-cleanup).")
             logging.info(f"Using database: {DATABASE_URL.split('://')[0] if DATABASE_URL else 'No database URL'}")
     except Exception as e:
         logging.error(f"Database initialization failed: {e}")

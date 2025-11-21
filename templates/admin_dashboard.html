@@ -1,54 +1,47 @@
 {% extends "layout.html" %} {% from 'macros/pagination.html' import render_pagination,
-render_search_controls %} {% block title %}Admin Dashboard - MOT{% endblock %} {% block content %}
+render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{% endblock %} {% block content %}
 <div class="min-h-screen py-8">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
     <!-- Header -->
-    <div class="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+    <div class="backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-red-600/30" style="background-color: #1F1F1F;">
       <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-3xl font-bold text-slate-800">Admin Dashboard</h1>
-          <p class="text-slate-600 mt-2">Manage users and monitor system activity</p>
+          <h1 class="text-3xl font-bold text-white">Admin Dashboard</h1>
+          <p class="text-gray-300 mt-2">Manage users and monitor system activity</p>
         </div>
-        <a
-          href="{{ url_for('create_user') }}"
-          class="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 font-medium transition-colors"
+        <button
+          onclick="openCreateUserModal()"
+          class="bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 font-medium transition-colors"
         >
           Create New User
-        </a>
+        </button>
       </div>
     </div>
 
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="bg-white p-6 rounded-lg shadow-lg">
+      <div class="p-6 rounded-lg shadow-lg border border-red-600/30" style="background-color: #1F1F1F;">
         <div class="flex items-center">
-          <div class="p-3 rounded-full bg-blue-100">
-            <svg
-              class="w-8 h-8 text-blue-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
-              ></path>
+          <div class="p-3 rounded-full bg-red-600/20">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <path d="M16 3.128a4 4 0 0 1 0 7.744"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <circle cx="9" cy="7" r="4"/>
             </svg>
           </div>
           <div class="ml-4">
-            <p class="text-sm font-medium text-gray-600">Total Users</p>
-            <p class="text-2xl font-bold text-gray-900">{{ total_users }}</p>
+            <p class="text-sm font-medium text-gray-300">Total Users</p>
+            <p class="text-2xl font-bold text-white">{{ total_users }}</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white p-6 rounded-lg shadow-lg">
+      <div class="p-6 rounded-lg shadow-lg border border-red-600/30" style="background-color: #1F1F1F;">
         <div class="flex items-center">
-          <div class="p-3 rounded-full bg-green-100">
+          <div class="p-3 rounded-full bg-red-600/20">
             <svg
-              class="w-8 h-8 text-green-600"
+              class="w-8 h-8 text-red-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -62,17 +55,17 @@ render_search_controls %} {% block title %}Admin Dashboard - MOT{% endblock %} {
             </svg>
           </div>
           <div class="ml-4">
-            <p class="text-sm font-medium text-gray-600">Total Contents</p>
-            <p class="text-2xl font-bold text-gray-900">{{ total_contents }}</p>
+            <p class="text-sm font-medium text-gray-300">Total Contents</p>
+            <p class="text-2xl font-bold text-white">{{ total_contents }}</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white p-6 rounded-lg shadow-lg">
+      <div class="p-6 rounded-lg shadow-lg border border-red-600/30" style="background-color: #1F1F1F;">
         <div class="flex items-center">
-          <div class="p-3 rounded-full bg-purple-100">
+          <div class="p-3 rounded-full bg-red-600/20">
             <svg
-              class="w-8 h-8 text-purple-600"
+              class="w-8 h-8 text-red-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -86,162 +79,213 @@ render_search_controls %} {% block title %}Admin Dashboard - MOT{% endblock %} {
             </svg>
           </div>
           <div class="ml-4">
-            <p class="text-sm font-medium text-gray-600">Active Users</p>
-            <p class="text-2xl font-bold text-gray-900">
-              {{ users.items|selectattr('is_active')|list|length }}
-            </p>
+            <p class="text-sm font-medium text-gray-300">Active Users</p>
+            <p class="text-2xl font-bold text-white">{{ users.items|selectattr('is_active')|list|length }}</p>
           </div>
         </div>
       </div>
     </div>
-
     <!-- User Management -->
-    <div class="bg-white p-6 rounded-lg shadow-lg">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold">User Management</h2>
-        <div class="text-sm text-gray-500">Total: {{ users.total }} users</div>
+    <div
+      class="backdrop-blur-sm rounded-2xl shadow-xl border border-red-600/30 overflow-hidden"
+      style="background-color: #1f1f1f"
+    >
+      <div class="p-6">
+        <div class="mb-6">
+          <h2 class="text-2xl font-bold text-white">User Management</h2>
+        </div>
+
+        <!-- Search Controls -->
+        {{ render_search_controls(search, filter_status) }}
       </div>
 
-      <!-- Search Controls -->
-      <div class="mb-4">{{ render_search_controls(search, filter_status) }}</div>
-
+      {% if users.items %}
       <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
+        <table class="min-w-full divide-y divide-gray-600">
+          <thead style="background-color: #2a2a2a;">
             <tr>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
                 User
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
-                Role
+                User Type
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
                 Status
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
                 Security
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
                 Created
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+              >
+                Expired
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
+          <tbody style="background-color: #1F1F1F;" class="divide-y divide-gray-600">
             {% for user in users.items %}
-            <tr>
+            <tr class="hover:bg-gray-700/30">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <div class="flex-shrink-0 h-10 w-10">
                     <div
-                      class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center"
+                      class="h-10 w-10 rounded-full bg-red-600/20 flex items-center justify-center"
                     >
-                      <span class="text-indigo-600 font-medium"
-                        >{{ user.username[0].upper() }}</span
+                      <span class="text-red-400 font-medium"
+                        >{{ user.email[0].upper() }}</span
                       >
                     </div>
                   </div>
                   <div class="ml-4">
-                    <div class="text-sm font-medium text-gray-900">{{ user.username }}</div>
+                    <div class="text-sm font-medium text-white">{{ user.email }}</div>
                   </div>
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 {% if user.is_admin %}
                 <span
-                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800"
+                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-600/20 text-purple-300"
                   >Admin</span
                 >
                 {% else %}
                 <span
-                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
-                  >User</span
+                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-600/20 text-green-300"
+                  >Normal</span
                 >
                 {% endif %}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 {% if user.is_active %}
                 <span
-                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800"
+                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-600/20 text-green-300"
                   >Active</span
                 >
                 {% else %}
                 <span
-                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800"
+                  class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-600/20 text-red-300"
                   >Inactive</span
                 >
                 {% endif %}
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">
+                <div class="text-sm text-white">
                   {% if user.failed_login_attempts > 0 %}
                   <span
-                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800"
+                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-600/20 text-yellow-300"
                   >
                     {{ user.failed_login_attempts }}/3 Failed
                   </span>
                   {% else %}
                   <span
-                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800"
+                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-600/20 text-green-300"
                   >
                     Secure
                   </span>
                   {% endif %}
                 </div>
                 {% if user.locked_until %}
-                <div class="text-xs text-red-600 mt-1">
+                <div class="text-xs text-red-400 mt-1">
                   Locked until {{ user.get_locked_until_myanmar().strftime('%H:%M') if
                   user.get_locked_until_myanmar() else 'N/A' }}
                 </div>
                 {% endif %}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ user.created_at.strftime('%Y-%m-%d') }}
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                {{ user.created_at.strftime('%d/%m/%y') }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                {% if user.is_admin %}
+                <span class="text-gray-400 text-xs">N/A</span>
+                {% elif user.expires_at %}
+                {{ user.expires_at.strftime('%d/%m/%y') }}
+                {% else %}
+                <span class="text-gray-400 text-xs">N/A</span>
+                {% endif %}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 {% if user.id != current_user.id %}
                 <div class="flex space-x-2">
                   <button
+                    data-action="edit-user"
+                    data-user-id="{{ user.id }}"
+                    class="text-blue-600 hover:text-blue-700 p-1"
+                    title="Edit user"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>
+                    </svg>
+                  </button>
+                  <button
                     data-action="toggle-user"
                     data-user-id="{{ user.id }}"
-                    class="{% if user.is_active %}text-indigo-600 hover:text-indigo-900{% else %}text-green-600 hover:text-green-900{% endif %}"
+                    class="{% if user.is_active %}text-yellow-600 hover:text-yellow-700{% else %}text-green-600 hover:text-green-700{% endif %} p-1"
+                    title="{% if user.is_active %}Deactivate user{% else %}Activate user{% endif %}"
                   >
-                    {% if user.is_active %}Deactivate{% else %}Activate{% endif %}
+                    {% if user.is_active %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                      <path d="M9 12h6"/>
+                    </svg>
+                    {% else %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-plus">
+                      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+                      <path d="M9 12h6"/>
+                      <path d="M12 9v6"/>
+                    </svg>
+                    {% endif %}
                   </button>
                   {% if user.failed_login_attempts > 0 %}
                   <button
                     data-action="reset-attempts"
                     data-user-id="{{ user.id }}"
-                    class="text-green-600 hover:text-green-900"
+                    class="text-green-600 hover:text-green-900 p-1"
                     title="Reset failed login attempts"
                   >
-                    Reset
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                      <path d="M21 3v5h-5"/>
+                      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                      <path d="M8 16H3v5"/>
+                    </svg>
                   </button>
                   {% endif %}
                   <button
                     data-action="delete-user"
                     data-user-id="{{ user.id }}"
-                    class="text-red-600 hover:text-red-900"
+                    class="text-red-600 hover:text-red-900 p-1"
+                    title="Delete user"
                   >
-                    Delete
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M10 11v6"/>
+                      <path d="M14 11v6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                      <path d="M3 6h18"/>
+                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
                   </button>
                 </div>
                 {% else %}
-                <span class="text-gray-400">Current User</span>
+                <span class="text-gray-500">Current User</span>
                 {% endif %}
               </td>
             </tr>
@@ -252,36 +296,928 @@ render_search_controls %} {% block title %}Admin Dashboard - MOT{% endblock %} {
 
       <!-- Pagination -->
       {{ render_pagination(users, 'admin_dashboard', search, filter_status) }}
+      {% else %}
+      <!-- Empty State -->
+      <div class="text-center py-12">
+        <svg
+          class="mx-auto h-12 w-12 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
+          />
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+        <p class="mt-1 text-sm text-gray-500">Get started by creating your first user.</p>
+        <div class="mt-6">
+          <button
+            onclick="openCreateUserModal()"
+            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            <svg
+              class="-ml-1 mr-2 h-5 w-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                clip-rule="evenodd"
+              ></path>
+            </svg>
+            Create New User
+          </button>
+        </div>
+      </div>
+      {% endif %}
     </div>
 
-    <!-- Recent Content Activity -->
-    <div class="bg-white p-6 rounded-lg shadow-lg">
-      <h2 class="text-2xl font-bold mb-6">Recent Content Activity</h2>
-      {% if recent_contents %}
-      <div class="space-y-4">
-        {% for content in recent_contents %}
-        <div class="border-l-4 border-indigo-400 pl-4 py-2">
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-medium text-gray-900">{{ content.title }}</h3>
-              <p class="text-sm text-gray-600">by {{ content.author.username }}</p>
-              <p class="text-xs text-gray-500">
-                {{ content.created_at.strftime('%Y-%m-%d %H:%M') }}
-              </p>
-            </div>
-            <span
-              class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800"
-            >
-              {{ content.purpose or 'General' }}
-            </span>
-          </div>
-        </div>
-        {% endfor %}
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="edit-user-modal" class="fixed inset-0 hidden z-50 p-4" style="display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px); background-color: rgba(0, 0, 0, 0.4);">
+  <div class="bg-gray-900 rounded-2xl shadow-2xl border border-red-600/30 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-white">Edit User</h2>
+        <button onclick="closeEditModal()" class="text-gray-400 hover:text-white transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
       </div>
-      {% else %}
-      <p class="text-gray-500 text-center py-8">No content created yet.</p>
-      {% endif %}
+
+      <form id="edit-user-form" class="space-y-4">
+        <input type="hidden" id="edit-user-id" name="user_id">
+        
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Email</label>
+          <input
+            type="email"
+            id="edit-email"
+            name="email"
+            required
+            class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
+            placeholder="user@gmail.com"
+          />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Password</label>
+          <div class="password-input-container">
+            <input
+              type="password"
+              id="edit-password"
+              name="password"
+              class="password-input"
+              placeholder="Leave blank to keep current password"
+              autocomplete="off"
+            />
+            <button type="button" class="password-toggle-btn" aria-label="Show password">
+              <!-- Eye Open Icon -->
+              <svg class="eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+              </svg>
+              <!-- Eye Closed Icon -->
+              <svg class="eye-closed" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+              </svg>
+            </button>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">Minimum 6 characters (leave blank to keep current password)</p>
+        </div>
+
+        <!-- Hidden User Type - always set to normal -->
+        <input type="hidden" id="edit-user-type" name="user_type" value="normal">
+
+        <!-- Expiration Date -->
+        <div id="edit-expiration-field">
+          <label class="block text-sm font-medium text-white mb-2">Expiration Date</label>
+          
+          <!-- Quick Duration Buttons -->
+          <div class="mb-4" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+            <button type="button" onclick="setEditQuickDuration(7)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              7 Days
+            </button>
+            <button type="button" onclick="setEditQuickDuration(30)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              1 Month
+            </button>
+            <button type="button" onclick="setEditQuickDuration(90)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              3 Months
+            </button>
+            <button type="button" onclick="setEditQuickDuration(180)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              6 Months
+            </button>
+            <button type="button" onclick="setEditQuickDuration(365)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s; grid-column: span 2;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              1 Year
+            </button>
+          </div>
+          
+          <!-- Date Picker -->
+          <input
+            type="date"
+            id="edit-expiration-date"
+            name="expiration_date"
+            class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
+            onchange="updateEditPreview()"
+          />
+          
+          <!-- Preview -->
+          <div id="edit-expiry-preview" class="mt-2 text-sm text-gray-300">
+            <span class="font-medium">Will expire on:</span> <span id="edit-expiry-date-display" class="text-red-400">-</span>
+          </div>
+          
+          <p class="text-xs text-gray-400 mt-1">
+            Required for Normal Users only. Select a future date.
+          </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-4 pt-4">
+          <button
+            type="button"
+            onclick="closeEditModal()"
+            class="flex-1 bg-gray-500 text-white py-3 rounded-md hover:bg-gray-600 font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            id="saveChangesButton"
+            type="submit"
+            class="flex-1 bg-red-600 text-white py-3 rounded-md hover:bg-red-700 font-medium transition-colors"
+            style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;"
+          >
+            <svg id="saveChangesSpinner" class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display: none; width: 20px; height: 20px;">
+              <circle style="opacity: 0.25; stroke: white;" cx="12" cy="12" r="10" stroke-width="4"></circle>
+              <path style="opacity: 0.75; fill: white;" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span id="saveChangesButtonText" style="color: white;" data-translate="Update">Update</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
+
+<!-- Create User Modal -->
+<div id="create-user-modal" class="fixed inset-0 hidden z-50 p-4" style="display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px); background-color: rgba(0, 0, 0, 0.4);">
+  <div class="bg-gray-900 rounded-2xl shadow-2xl border border-red-600/30 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold text-white">Create New User</h2>
+        <button onclick="closeCreateUserModal()" class="text-gray-400 hover:text-white transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <form id="create-user-form" onsubmit="handleCreateUser(event)" class="space-y-6">
+        
+        <!-- Email -->
+        <div>
+          <label for="create-email" class="block text-sm font-medium text-white mb-2">Email</label>
+          <input
+            type="email"
+            id="create-email"
+            name="email"
+            required
+            class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
+            placeholder="user@gmail.com"
+            onkeydown="return preventSpaceKey(event)"
+            oninput="cleanInput(event)"
+            onpaste="setTimeout(() => cleanInput(event), 10)"
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label for="create-password" class="block text-sm font-medium text-white mb-2">Password</label>
+          <div class="password-input-container">
+            <input
+              type="password"
+              id="create-password"
+              name="password"
+              required
+              class="password-input"
+              placeholder="Enter password (min 6 characters)"
+              onkeydown="return preventSpaceKey(event)"
+              oninput="cleanInput(event)"
+              onpaste="setTimeout(() => cleanInput(event), 10)"
+              autocomplete="off"
+            />
+            <button type="button" class="password-toggle-btn" aria-label="Show password">
+              <svg class="eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <svg class="eye-closed" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"/>
+              </svg>
+            </button>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">Minimum 6 characters</p>
+        </div>
+
+        <!-- Hidden User Type - always set to normal -->
+        <input type="hidden" id="create-user-type" name="user_type" value="normal">
+
+        <!-- Expiration Date -->
+        <div id="create-expiration-field">
+          <label class="block text-sm font-medium text-white mb-2">Expiration Date</label>
+          
+          <!-- Quick Duration Buttons -->
+          <div class="mb-4" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+            <button type="button" onclick="setCreateQuickDuration(7)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              7 Days
+            </button>
+            <button type="button" onclick="setCreateQuickDuration(30)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              1 Month
+            </button>
+            <button type="button" onclick="setCreateQuickDuration(90)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              3 Months
+            </button>
+            <button type="button" onclick="setCreateQuickDuration(180)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              6 Months
+            </button>
+            <button type="button" onclick="setCreateQuickDuration(365)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s; grid-column: span 2;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
+              1 Year
+            </button>
+          </div>
+          
+          <!-- Date Picker -->
+          <input
+            type="date"
+            id="create-expiration-date"
+            name="expiration_date"
+            class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
+            onchange="updateCreatePreview()"
+            required
+          />
+          
+          <!-- Preview -->
+          <div id="create-expiry-preview" class="mt-2 text-sm text-gray-300">
+            <span class="font-medium">Will expire on:</span> <span id="create-expiry-date-display" class="text-red-400">-</span>
+          </div>
+          
+          <p class="text-xs text-red-400 mt-1">
+            <span class="font-semibold">* Required:</span> Select a future date for user expiration.
+          </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex space-x-4 pt-4">
+          <button
+            type="button"
+            onclick="closeCreateUserModal()"
+            class="flex-1 bg-gray-500 text-white py-3 rounded-md hover:bg-gray-600 font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            id="createUserButton"
+            type="submit"
+            class="flex-1 bg-red-600 text-white py-3 rounded-md hover:bg-red-700 font-medium transition-colors"
+            style="display: inline-flex; align-items: center; justify-content: center; gap: 8px;"
+          >
+            <svg id="createUserSpinner" class="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display: none; width: 20px; height: 20px;">
+              <circle style="opacity: 0.25; stroke: white;" cx="12" cy="12" r="10" stroke-width="4"></circle>
+              <path style="opacity: 0.75; fill: white;" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span id="createUserButtonText" style="color: white;" data-translate="Create">Create</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  
+  #saveChangesButton {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+  
+  #saveChangesButtonText {
+    color: white !important;
+  }
+  
+  #createUserButton {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+  
+  #createUserButtonText {
+    color: white !important;
+  }
+</style>
+
+<script>
+// Check for flash messages in sessionStorage on page load
+document.addEventListener('DOMContentLoaded', function() {
+  const flashMessage = sessionStorage.getItem('flashMessage');
+  if (flashMessage) {
+    try {
+      const flash = JSON.parse(flashMessage);
+      if (window.notify) {
+        if (flash.category === 'success') {
+          window.notify.success(flash.message, '✅ User Created');
+        } else if (flash.category === 'error') {
+          window.notify.error(flash.message, '❌ Error');
+        } else {
+          window.notify.info(flash.message, 'ℹ️ Info');
+        }
+      }
+      sessionStorage.removeItem('flashMessage');
+    } catch (e) {
+      console.error('Error parsing flash message:', e);
+    }
+  }
+});
+
+// Prevent space key in password and email fields
+function preventSpaceKey(event) {
+  if (event.keyCode === 32 || event.key === ' ' || event.key === 'Spacebar') {
+    event.preventDefault();
+    event.stopPropagation();
+    return false;
+  }
+  return true;
+}
+
+// Clean input on paste and input events
+function cleanInput(event) {
+  const input = event.target;
+  input.value = input.value.replace(/\s/g, '');
+}
+
+// Create User Modal Functions
+function openCreateUserModal() {
+  const modal = document.getElementById('create-user-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+  setCreateMinDate();
+  
+  // Fetch CSRF token from the create_user page
+  console.log('Fetching CSRF token from create_user page...');
+  fetch('/admin/users/create')
+    .then(response => response.text())
+    .then(html => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const csrfInput = doc.querySelector('input[name="csrf_token"]');
+      
+      console.log('Found CSRF token:', csrfInput ? csrfInput.value.substring(0, 20) + '...' : 'NOT FOUND');
+      
+      if (csrfInput) {
+        const createForm = document.getElementById('create-user-form');
+        let createCsrfInput = createForm.querySelector('input[name="csrf_token"]');
+        if (!createCsrfInput) {
+          createCsrfInput = document.createElement('input');
+          createCsrfInput.type = 'hidden';
+          createCsrfInput.name = 'csrf_token';
+          createForm.insertBefore(createCsrfInput, createForm.firstChild);
+        }
+        createCsrfInput.value = csrfInput.value;
+        console.log('CSRF token set successfully');
+      } else {
+        console.error('No CSRF token found in create_user page!');
+        alert('Error: CSRF token not found. Please refresh the page and try again.');
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching CSRF token:', error);
+      alert('Error: Could not load form. Please try again.');
+    });
+}
+
+function closeCreateUserModal() {
+  const modal = document.getElementById('create-user-modal');
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
+  document.getElementById('create-user-form').reset();
+}
+
+function setCreateMinDate() {
+  const dateInput = document.getElementById('create-expiration-date');
+  const today = new Date().toISOString().split('T')[0];
+  dateInput.min = today;
+}
+
+function setCreateQuickDuration(days) {
+  const dateInput = document.getElementById('create-expiration-date');
+  const expiryDate = new Date();
+  
+  if (days > 0) {
+    expiryDate.setDate(expiryDate.getDate() + days);
+  }
+  
+  const year = expiryDate.getFullYear();
+  const month = String(expiryDate.getMonth() + 1).padStart(2, '0');
+  const day = String(expiryDate.getDate()).padStart(2, '0');
+  
+  dateInput.value = `${year}-${month}-${day}`;
+  updateCreatePreview();
+}
+
+function updateCreatePreview() {
+  const dateInput = document.getElementById('create-expiration-date');
+  const preview = document.getElementById('create-expiry-date-display');
+  
+  if (dateInput.value) {
+    const selected = new Date(dateInput.value);
+    const now = new Date();
+    
+    if (selected < now) {
+      preview.textContent = '⚠️ Cannot select past date';
+      preview.className = 'text-red-500 font-medium';
+      return;
+    }
+    
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const formattedDate = selected.toLocaleDateString('en-US', options);
+    
+    const diffTime = selected - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    preview.textContent = `${formattedDate} (${diffDays} days from now)`;
+    preview.className = 'text-red-400 font-medium';
+  } else {
+    preview.textContent = '-';
+    preview.className = 'text-red-400';
+  }
+}
+
+// Close modal when clicking outside
+document.getElementById('create-user-modal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeCreateUserModal();
+  }
+});
+
+// Handle Create User Form Submission
+function handleCreateUser(event) {
+  event.preventDefault();
+  
+  const form = document.getElementById('create-user-form');
+  const formData = new FormData(form);
+  
+  // Log form data for debugging
+  console.log('=== Form Submission Data ===');
+  for (let [key, value] of formData.entries()) {
+    if (key === 'csrf_token') {
+      console.log(key + ':', value ? 'Present (' + value.substring(0, 10) + '...)' : 'MISSING');
+    } else {
+      console.log(key + ':', value);
+    }
+  }
+  console.log('===========================');
+  
+  // Check if CSRF token exists
+  if (!formData.get('csrf_token')) {
+    alert('Error: CSRF token is missing. Please close and reopen the modal.');
+    return;
+  }
+  
+  // Validate expiration date
+  const expirationDate = formData.get('expiration_date');
+  if (!expirationDate || expirationDate.trim() === '') {
+    if (window.notify) {
+      notify.error('Please select an expiration date', 'Validation Error');
+    } else {
+      alert('Error: Please select an expiration date');
+    }
+    return;
+  }
+  
+  // Check if expiration date is in the future
+  const selectedDate = new Date(expirationDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  if (selectedDate < today) {
+    if (window.notify) {
+      notify.error('Expiration date must be in the future', 'Validation Error');
+    } else {
+      alert('Error: Expiration date must be in the future');
+    }
+    return;
+  }
+  
+  // Get button elements
+  const createButton = document.getElementById('createUserButton');
+  const createSpinner = document.getElementById('createUserSpinner');
+  const createButtonText = document.getElementById('createUserButtonText');
+
+  // Show loading state
+  if (createButton && createSpinner && createButtonText) {
+    createButton.disabled = true;
+    createButton.style.opacity = '0.7';
+    createButton.style.cursor = 'not-allowed';
+    createSpinner.style.display = 'inline-block';
+    createButtonText.style.color = 'white';
+    
+    const currentLang = localStorage.getItem('language') || 'my';
+    if (window.translations && window.translations['Creating...']) {
+      createButtonText.textContent = window.translations['Creating...'][currentLang];
+    } else {
+      createButtonText.textContent = currentLang === 'my' ? 'ဖန်တီးနေသည်...' : 'Creating...';
+    }
+  }
+  
+  fetch('/admin/users/create', {
+    method: 'POST',
+    body: formData,
+    redirect: 'manual'  // Don't follow redirects automatically
+  })
+  .then(response => {
+    console.log('Response status:', response.status);
+    console.log('Response type:', response.type);
+    
+    // Check if it's a redirect (302, 303, etc.)
+    if (response.type === 'opaqueredirect' || response.status === 302 || response.status === 303) {
+      // Assume success and reload
+      console.log('Redirect detected - reloading page');
+      closeCreateUserModal();
+      // Use flash message on reload
+      sessionStorage.setItem('flashMessage', JSON.stringify({
+        message: 'User created successfully',
+        category: 'success'
+      }));
+      window.location.reload();
+      return;
+    }
+    
+    // Try to parse as JSON or HTML
+    return response.text().then(text => {
+      console.log('Response text (first 500 chars):', text.substring(0, 500));
+      
+      // If response is empty, assume success
+      if (!text || text.trim() === '') {
+        console.log('Empty response - assuming success');
+        return { success: true };
+      }
+      
+      try {
+        const data = JSON.parse(text);
+        console.log('Parsed JSON:', data);
+        return data;
+      } catch (e) {
+        console.log('Not JSON, parsing as HTML');
+        // Not JSON, parse as HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        
+        // Check for flash messages or alerts
+        const flashMessages = doc.querySelectorAll('.alert, .flash, .alert-error, .flash-error, [class*="error"]');
+        console.log('Found flash messages:', flashMessages.length);
+        
+        if (flashMessages.length > 0) {
+          const errorText = Array.from(flashMessages).map(el => el.textContent.trim()).join('; ');
+          console.log('Error messages:', errorText);
+          if (errorText.toLowerCase().includes('error') || errorText.toLowerCase().includes('failed')) {
+            throw new Error(errorText || 'Failed to create user');
+          }
+        }
+        
+        // Check if it's the create_user page (means there was an error and we're back on the form)
+        if (text.includes('Create New User') && text.includes('form')) {
+          console.log('Redirected back to create form - likely validation error');
+          throw new Error('Validation error. Please check all required fields.');
+        }
+        
+        // If we got here, assume success
+        console.log('No errors found - assuming success');
+        return { success: true };
+      }
+    });
+  })
+  .then(data => {
+    if (data && data.success) {
+      closeCreateUserModal();
+      sessionStorage.setItem('flashMessage', JSON.stringify({
+        message: 'User created successfully',
+        category: 'success'
+      }));
+      window.location.reload();
+    } else if (data && data.error) {
+      if (window.notify) {
+        window.notify.error(data.error, '❌ Error');
+      } else {
+        alert(data.error);
+      }
+      if (createButton && createSpinner && createButtonText) {
+        createButton.disabled = false;
+        createButton.style.opacity = '1';
+        createButton.style.cursor = 'pointer';
+        createSpinner.style.display = 'none';
+        const currentLang = localStorage.getItem('language') || 'my';
+        if (window.translations && window.translations['Create']) {
+          createButtonText.textContent = window.translations['Create'][currentLang];
+        } else {
+          createButtonText.textContent = currentLang === 'my' ? 'ဖန်တီးမည်' : 'Create';
+        }
+      }
+    } else {
+      // Unknown response, reload to be safe
+      sessionStorage.setItem('flashMessage', JSON.stringify({
+        message: 'User created successfully',
+        category: 'success'
+      }));
+      window.location.reload();
+    }
+  })
+  .catch(error => {
+    console.error('Caught error:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Show error using toast
+    const errorMsg = error.message || 'Failed to create user. Please try again.';
+    if (window.notify) {
+      window.notify.error(errorMsg, '❌ Error');
+    } else {
+      alert('Error: ' + errorMsg);
+    }
+    
+    if (createButton && createSpinner && createButtonText) {
+      createButton.disabled = false;
+      createButton.style.opacity = '1';
+      createButton.style.cursor = 'pointer';
+      createSpinner.style.display = 'none';
+      const currentLang = localStorage.getItem('language') || 'my';
+      if (window.translations && window.translations['Create']) {
+        createButtonText.textContent = window.translations['Create'][currentLang];
+      } else {
+        createButtonText.textContent = currentLang === 'my' ? 'ဖန်တီးမည်' : 'Create';
+      }
+    }
+  });
+}
+
+// Edit User Modal Functions
+function openEditModal(userId) {
+  // Fetch user data
+  fetch(`/admin/users/${userId}/edit`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        const user = data.user;
+        
+        // Populate form
+        document.getElementById('edit-user-id').value = user.id;
+        document.getElementById('edit-email').value = user.email;
+        document.getElementById('edit-password').value = '';
+        document.getElementById('edit-user-type').value = user.user_type;
+        
+        if (user.expires_at) {
+          document.getElementById('edit-expiration-date').value = user.expires_at;
+        }
+        
+        // Initialize expiration date field
+        setEditMinDate();
+        
+        // Show modal
+        const modal = document.getElementById('edit-user-modal');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        
+        // Initialize password toggle for the modal
+        setTimeout(() => {
+          const passwordContainer = modal.querySelector('.password-input-container');
+          if (passwordContainer && window.PasswordToggle) {
+            new window.PasswordToggle(passwordContainer);
+          }
+        }, 100);
+      } else {
+        if (window.notify) {
+          notify.error(data.error || 'Failed to load user data', 'Error');
+        } else {
+          alert(data.error || 'Failed to load user data');
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      if (window.notify) {
+        notify.error('Failed to load user data', 'Error');
+      } else {
+        alert('Failed to load user data');
+      }
+    });
+}
+
+function closeEditModal() {
+  const modal = document.getElementById('edit-user-modal');
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
+  document.getElementById('edit-user-form').reset();
+  
+  // Reset password visibility
+  const passwordInput = document.getElementById('edit-password');
+  if (passwordInput) {
+    passwordInput.type = 'password';
+  }
+  const toggleBtn = modal.querySelector('.password-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.classList.remove('password-visible');
+  }
+}
+
+function setEditMinDate() {
+  const dateInput = document.getElementById('edit-expiration-date');
+  const today = new Date().toISOString().split('T')[0];
+  dateInput.min = today;
+}
+
+function setEditQuickDuration(days) {
+  const dateInput = document.getElementById('edit-expiration-date');
+  const expiryDate = new Date();
+  
+  if (days > 0) {
+    expiryDate.setDate(expiryDate.getDate() + days);
+  }
+  
+  const year = expiryDate.getFullYear();
+  const month = String(expiryDate.getMonth() + 1).padStart(2, '0');
+  const day = String(expiryDate.getDate()).padStart(2, '0');
+  
+  dateInput.value = `${year}-${month}-${day}`;
+  
+  updateEditPreview();
+}
+
+function updateEditPreview() {
+  const dateInput = document.getElementById('edit-expiration-date');
+  const preview = document.getElementById('edit-expiry-date-display');
+  
+  if (dateInput.value) {
+    const selected = new Date(dateInput.value);
+    const now = new Date();
+    
+    if (selected < now) {
+      preview.textContent = '⚠️ Cannot select past date';
+      preview.className = 'text-red-500 font-medium';
+      return;
+    }
+    
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const formattedDate = selected.toLocaleDateString('en-US', options);
+    
+    const diffTime = selected - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    preview.textContent = `${formattedDate} (${diffDays} days from now)`;
+    preview.className = 'text-red-400 font-medium';
+  } else {
+    preview.textContent = '-';
+    preview.className = 'text-red-400';
+  }
+}
+
+// Handle form submission
+document.getElementById('edit-user-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const userId = document.getElementById('edit-user-id').value;
+  const formData = {
+    email: document.getElementById('edit-email').value,
+    password: document.getElementById('edit-password').value,
+    user_type: document.getElementById('edit-user-type').value,
+    expiration_date: document.getElementById('edit-expiration-date').value
+  };
+  
+  // Get button elements
+  const saveButton = document.getElementById('saveChangesButton');
+  const saveSpinner = document.getElementById('saveChangesSpinner');
+  const saveButtonText = document.getElementById('saveChangesButtonText');
+
+  // Show loading state
+  if (saveButton && saveSpinner && saveButtonText) {
+    saveButton.disabled = true;
+    saveButton.style.opacity = '0.7';
+    saveButton.style.cursor = 'not-allowed';
+    saveSpinner.style.display = 'inline-block';
+    saveButtonText.style.color = 'white';
+    
+    const currentLang = localStorage.getItem('language') || 'my';
+    if (window.translations && window.translations['Updating...']) {
+      saveButtonText.textContent = window.translations['Updating...'][currentLang];
+    } else {
+      saveButtonText.textContent = currentLang === 'my' ? 'ပြင်ဆင်နေသည်...' : 'Updating...';
+    }
+  }
+  
+  try {
+    const response = await fetch(`/admin/users/${userId}/edit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      if (window.notify) {
+        notify.success(data.message || 'User updated successfully', 'Success');
+      } else {
+        alert(data.message || 'User updated successfully');
+      }
+      
+      closeEditModal();
+      
+      // Reload page to show updated data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      // Reset button on error
+      if (saveButton && saveSpinner && saveButtonText) {
+        saveButton.disabled = false;
+        saveButton.style.opacity = '1';
+        saveButton.style.cursor = 'pointer';
+        saveSpinner.style.display = 'none';
+        const currentLang = localStorage.getItem('language') || 'my';
+        if (window.translations && window.translations['Update']) {
+          saveButtonText.textContent = window.translations['Update'][currentLang];
+        } else {
+          saveButtonText.textContent = currentLang === 'my' ? 'ပြင်ဆင်မည်' : 'Update';
+        }
+      }
+      
+      if (window.notify) {
+        notify.error(data.error || 'Failed to update user', 'Error');
+      } else {
+        alert(data.error || 'Failed to update user');
+      }
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    
+    // Reset button on error
+    if (saveButton && saveSpinner && saveButtonText) {
+      saveButton.disabled = false;
+      saveButton.style.opacity = '1';
+      saveButton.style.cursor = 'pointer';
+      saveSpinner.style.display = 'none';
+      const currentLang = localStorage.getItem('language') || 'my';
+      if (window.translations && window.translations['Update']) {
+        saveButtonText.textContent = window.translations['Update'][currentLang];
+      } else {
+        saveButtonText.textContent = currentLang === 'my' ? 'ပြင်ဆင်မည်' : 'Update';
+      }
+    }
+    
+    if (window.notify) {
+      notify.error('An error occurred while updating user', 'Error');
+    } else {
+      alert('An error occurred while updating user');
+    }
+  }
+});
+
+// Handle edit-user action only (other actions handled by main.js)
+document.addEventListener('click', function(e) {
+  const target = e.target.closest('[data-action="edit-user"]');
+  if (!target) return;
+  
+  const userId = target.getAttribute('data-user-id');
+  if (userId) {
+    openEditModal(userId);
+  }
+});
+
+// Close modal when clicking outside
+document.getElementById('edit-user-modal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeEditModal();
+  }
+});
+</script>
+
 {% endblock %}

@@ -1,0 +1,724 @@
+{% extends "layout.html" %} {% block title %}Contents Dashboard - Genius AutoWriter{% endblock %} {%
+block head %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/contents-dashboard.css') }}?v=4.3"
+/>
+<script src="{{ url_for('static', filename='js/contents-dashboard.js') }}?v=4.3" defer></script>
+<style>
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  #updateButton {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  #updateButtonText {
+    color: white !important;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="contents-dashboard-container">
+  <div class="contents-dashboard-wrapper">
+    <!-- Header -->
+    <div class="dashboard-header-card">
+      <h1 class="dashboard-main-title" data-translate="Contents Dashboard">Contents Dashboard</h1>
+      <p class="dashboard-subtitle" data-translate="Content Management">Content Management</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <!-- Total Contents -->
+      <div class="stat-card">
+        <div class="stat-icon-wrapper stat-icon-red">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+            <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+            <path d="M10 9H8" />
+            <path d="M16 13H8" />
+            <path d="M16 17H8" />
+          </svg>
+        </div>
+        <div class="stat-content">
+          <p class="stat-label" data-translate="Total Contents">Total Contents</p>
+          <p class="stat-value" id="total-contents">{{ total_count }}</p>
+        </div>
+      </div>
+
+      <!-- Published -->
+      <div class="stat-card">
+        <div class="stat-icon-wrapper stat-icon-red">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </div>
+        <div class="stat-content">
+          <p class="stat-label" data-translate="Published">Published</p>
+          <p class="stat-value" id="published-count">{{ published_count }}</p>
+        </div>
+      </div>
+
+      <!-- Drafts -->
+      <div class="stat-card">
+        <div class="stat-icon-wrapper stat-icon-red">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"
+            />
+            <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+            <path
+              d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
+            />
+            <path d="m2 2 20 20" />
+          </svg>
+        </div>
+        <div class="stat-content">
+          <p class="stat-label" data-translate="Drafts">Drafts</p>
+          <p class="stat-value" id="drafts-count">{{ drafts_count }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="search-filter-section">
+      <div class="search-box">
+        <svg
+          class="search-icon"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Search contents..."
+          data-placeholder="Search contents..."
+        />
+      </div>
+
+      <div class="filter-dropdown-wrapper">
+        <select
+          id="filter-select"
+          class="px-4 py-3 bg-white border-2 border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:border-red-500 hover:border-red-400 transition-colors duration-200 cursor-pointer"
+        >
+          <option value="all" data-translate="All Contents">All Contents</option>
+          <option value="published" data-translate="Published">Published</option>
+          <option value="drafts" data-translate="Drafts">Drafts</option>
+        </select>
+      </div>
+
+      <div class="showing-count">
+        <span data-translate="Showing">Showing</span>
+        <span id="showing-count">{{ contents|length }}</span> <span data-translate="of">of</span>
+        <span id="total-showing">{{ total_count }}</span>
+      </div>
+    </div>
+
+    <!-- Contents List Section -->
+    <div class="contents-list-card">
+      <div class="contents-list-header">
+        <h2 class="contents-list-title" data-translate="Contents Dashboard">Contents Dashboard</h2>
+        <p class="contents-list-subtitle" data-translate="Manage your content library">
+          Manage your content library
+        </p>
+      </div>
+
+      <div id="contents-list" class="contents-list">
+        {% if contents %} {% for content in contents %}
+        <div
+          class="content-item"
+          data-content-id="{{ content.id }}"
+          data-published="{{ content.published|lower }}"
+        >
+          <div class="content-item-main">
+            <div class="content-left">
+              <div class="content-title-row">
+                <h3 class="content-title">{{ content.title }}</h3>
+                <span
+                  class="status-badge {% if content.published %}status-published{% else %}status-draft{% endif %}"
+                >
+                  {% if content.published %}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span data-translate="Posted">Posted</span>
+                  {% else %}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"
+                    />
+                    <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+                    <path
+                      d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
+                    />
+                    <path d="m2 2 20 20" />
+                  </svg>
+                  <span data-translate="Not Posted">Not Posted</span>
+                  {% endif %}
+                </span>
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    class="publish-toggle"
+                    data-content-id="{{ content.id }}"
+                    {%
+                    if
+                    content.published
+                    %}checked{%
+                    endif
+                    %}
+                  />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="content-preview">
+                {{ content.content[:150] }}{% if content.content|length > 150 %}...{% endif %}
+              </div>
+
+              <div class="content-meta">
+                <span class="meta-item">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M8 2v4" />
+                    <path d="M16 2v4" />
+                    <rect width="18" height="18" x="3" y="4" rx="2" />
+                    <path d="M3 10h18" />
+                  </svg>
+                  <span data-translate="Created">Created</span>:
+                  <span
+                    class="meta-date"
+                    data-date-iso="{{ format_datetime_iso(content.created_at) }}"
+                  >
+                    {{ content.created_at.strftime('%b %d, %Y, %I:%M %p') }}
+                  </span>
+                </span>
+                <span class="meta-item">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span data-translate="Updated">Updated</span>:
+                  <span
+                    class="meta-date"
+                    data-date-iso="{{ format_datetime_iso(content.updated_at) }}"
+                  >
+                    {{ content.updated_at.strftime('%b %d, %Y, %I:%M %p') }}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            <div class="content-actions">
+              <button
+                class="action-btn action-view"
+                data-content-id="{{ content.id }}"
+                title="View"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              <button
+                class="action-btn action-edit"
+                data-content-id="{{ content.id }}"
+                title="Edit"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path
+                    d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"
+                  />
+                </svg>
+              </button>
+              <button
+                class="action-btn action-delete"
+                data-content-id="{{ content.id }}"
+                title="Delete"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endfor %} {% else %}
+        <div class="empty-state">
+          <svg
+            class="empty-state-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <p class="empty-state-text" data-translate="No contents found">No contents found</p>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if total_pages > 1 %}
+      <div class="pagination-wrapper">
+        <!-- Mobile Pagination -->
+        <div class="pagination-mobile">
+          <div class="pagination-info-mobile">
+            <span data-translate="Showing">Showing</span>
+            {{ (page - 1) * per_page + 1 }}
+            <span>-</span>
+            {{ (page - 1) * per_page + current_page_count }}
+            <span data-translate="of">of</span>
+            {{ total_count }}
+          </div>
+          <div class="pagination-controls-mobile">
+            <a
+              href="{{ url_for('contents_dashboard', page=prev_page) }}"
+              class="pagination-btn {% if not has_prev %}disabled{% endif %}"
+              aria-label="Previous"
+            >
+              <span class="pagination-arrow bold-pagination-arrow">&lt;</span>
+            </a>
+            <div class="pagination-current">{{ page }}</div>
+            <a
+              href="{{ url_for('contents_dashboard', page=next_page) }}"
+              class="pagination-btn {% if not has_next %}disabled{% endif %}"
+              aria-label="Next"
+            >
+              <span class="pagination-arrow bold-pagination-arrow">&gt;</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Desktop Pagination -->
+        <div class="pagination-desktop">
+          <div class="pagination-controls-desktop">
+            <a
+              href="{{ url_for('contents_dashboard', page=prev_page) }}"
+              class="pagination-btn pagination-btn-prev {% if not has_prev %}disabled{% endif %}"
+              aria-label="Previous"
+            >
+              <span class="pagination-arrow bold-pagination-arrow">&lt;</span>
+            </a>
+            {% if 1 not in page_numbers %}
+            <a href="{{ url_for('contents_dashboard', page=1) }}" class="pagination-number">1</a>
+            {% if 2 not in page_numbers %}
+            <span class="pagination-ellipsis">...</span>
+            {% endif %} {% endif %} {% for num in page_numbers %}
+            <a
+              href="{{ url_for('contents_dashboard', page=num) }}"
+              class="pagination-number {% if num == page %}active{% endif %}"
+              >{{ num }}</a
+            >
+            {% endfor %} {% if total_pages not in page_numbers %} {% if total_pages - 1 not in
+            page_numbers %}
+            <span class="pagination-ellipsis">...</span>
+            {% endif %}
+            <a
+              href="{{ url_for('contents_dashboard', page=total_pages) }}"
+              class="pagination-number {% if total_pages == page %}active{% endif %}"
+              >{{ total_pages }}</a
+            >
+            {% endif %}
+
+            <a
+              href="{{ url_for('contents_dashboard', page=next_page) }}"
+              class="pagination-btn pagination-btn-next {% if not has_next %}disabled{% endif %}"
+              aria-label="Next"
+            >
+              <span class="pagination-arrow">&gt;</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- View Content Modal -->
+<div
+  id="view-modal"
+  onclick="if(event.target === this) closeViewModal()"
+  style="
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+  "
+>
+  <div
+    onclick="event.stopPropagation()"
+    style="
+      background-color: #ffffff;
+      border-radius: 1rem;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+      cursor: default;
+    "
+  >
+    <div
+      style="
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      <h2 id="view-modal-title" class="modal-title">Content Title</h2>
+      <button class="modal-close" onclick="closeViewModal()">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-meta">
+        <span id="view-modal-status" class="status-badge"></span>
+        <span class="meta-item">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M8 2v4" />
+            <path d="M16 2v4" />
+            <rect width="18" height="18" x="3" y="4" rx="2" />
+            <path d="M3 10h18" />
+          </svg>
+          <span data-translate="Created">Created</span>:
+          <span id="view-modal-created"></span>
+        </span>
+        <span class="meta-item">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span data-translate="Updated">Updated</span>:
+          <span id="view-modal-updated"></span>
+        </span>
+      </div>
+      <div id="view-modal-content" class="modal-content-text"></div>
+    </div>
+    <div
+      style="
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1.5rem 2rem;
+        border-top: 1px solid #e5e7eb;
+      "
+    >
+      <button class="btn-secondary" onclick="closeViewModal()" data-translate="Close">Close</button>
+      <button class="btn-primary" onclick="copyContent()">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+        </svg>
+        <span data-translate="Copy">Copy</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Content Modal -->
+<div
+  id="edit-modal"
+  onclick="if(event.target === this) closeEditModal()"
+  style="
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+  "
+>
+  <div
+    onclick="event.stopPropagation()"
+    style="
+      background-color: #ffffff;
+      border-radius: 1rem;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+      cursor: default;
+    "
+  >
+    <div
+      style="
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e5e7eb;
+      "
+    >
+      <div>
+        <h2 class="modal-title" data-translate="Edit Content">Edit Content</h2>
+        <p class="modal-subtitle" data-translate="Update your content details below">
+          Update your content details below
+        </p>
+      </div>
+      <button class="modal-close" onclick="closeEditModal()">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="edit-form">
+        <input type="hidden" id="edit-content-id" />
+        <div class="form-group">
+          <label for="edit-title" data-translate="Title">Title</label>
+          <input type="text" id="edit-title" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label for="edit-content" data-translate="Content">Content</label>
+          <textarea id="edit-content" class="form-textarea" rows="12" required></textarea>
+        </div>
+      </form>
+    </div>
+    <div
+      style="
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1.5rem 2rem;
+        border-top: 1px solid #e5e7eb;
+      "
+    >
+      <button class="btn-secondary" onclick="closeEditModal()" data-translate="Cancel">
+        Cancel
+      </button>
+      <button
+        id="updateButton"
+        class="btn-primary"
+        onclick="updateContent()"
+        data-translate="Update"
+      >
+        <svg
+          id="updateSpinner"
+          class="animate-spin"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          style="display: none; width: 20px; height: 20px"
+        >
+          <circle
+            style="opacity: 0.25; stroke: white"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke-width="4"
+          ></circle>
+          <path
+            style="opacity: 0.75; fill: white"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <span id="updateButtonText" style="color: white">Update</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -27,7 +27,7 @@ class NotificationManager {
       warning: `<svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #f59e0b;">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
       </svg>`,
-      info: `<svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #3b82f6;">
+      info: `<svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #dc2626;">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>`
     };
@@ -115,7 +115,7 @@ class ModalManager {
         warning: `<svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #f59e0b;">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
         </svg>`,
-        question: `<svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #3b82f6;">
+        question: `<svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #dc2626;">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>`
       };
@@ -135,10 +135,11 @@ class ModalManager {
         <div class="modal-body">
           <div class="modal-message">${options.message || ''}</div>
           ${options.input ? `<input type="text" class="modal-input" placeholder="${options.placeholder || ''}" value="${options.defaultValue || ''}">` : ''}
+          <div class="modal-error" style="color: #ef4444; font-size: 0.875rem; margin-bottom: 1rem; display: none;"></div>
           <div class="modal-actions">
-            ${options.showCancel !== false ? `<button class="modal-button secondary" data-action="cancel">Cancel</button>` : ''}
+            ${options.showCancel !== false ? `<button class="modal-button secondary" data-action="cancel">${window.getTranslation ? window.getTranslation('Cancel') : 'Cancel'}</button>` : ''}
             <button class="modal-button ${options.type === 'danger' ? 'danger' : 'primary'}" data-action="confirm">
-              ${options.confirmText || 'OK'}
+              ${options.confirmText || (window.getTranslation ? window.getTranslation('OK') : 'OK')}
             </button>
           </div>
         </div>
@@ -153,6 +154,7 @@ class ModalManager {
       const cancelBtn = modal.querySelector('[data-action="cancel"]');
       const confirmBtn = modal.querySelector('[data-action="confirm"]');
       const input = modal.querySelector('.modal-input');
+      const errorMsg = modal.querySelector('.modal-error');
 
       const cleanup = () => {
         overlay.classList.remove('show');
@@ -176,7 +178,35 @@ class ModalManager {
         });
       }
 
+      if (input) {
+        input.addEventListener('input', () => {
+          if (errorMsg) errorMsg.style.display = 'none';
+          input.style.borderColor = '';
+        });
+
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            confirmBtn.click();
+          }
+        });
+      }
+
       confirmBtn.addEventListener('click', () => {
+        if (options.input && options.required && input && !input.value.trim()) {
+          if (errorMsg) {
+            const currentLang = localStorage.getItem('language') || 'en';
+            const errorText = currentLang === 'my' 
+              ? 'ကျေးဇူးပြု၍ content title ထည့်ပေးပါ' 
+              : 'Please enter content title';
+            
+            errorMsg.textContent = window.getTranslation ? window.getTranslation(errorText) : errorText;
+            errorMsg.style.display = 'block';
+          }
+          input.style.borderColor = '#ef4444';
+          input.focus();
+          return;
+        }
+
         const result = options.input ? input.value : true;
         cleanup();
         resolve(result);
@@ -229,18 +259,19 @@ class ModalManager {
       message,
       icon: type,
       showCancel: false,
-      confirmText: 'OK'
+      confirmText: window.getTranslation ? window.getTranslation('OK') : 'OK'
     });
   }
 
-  prompt(message, title = 'Input', defaultValue = '', placeholder = '') {
+  prompt(message, title = 'Input', defaultValue = '', placeholder = '', options = {}) {
     return this.show({
       title,
       message,
       input: true,
       defaultValue,
       placeholder,
-      icon: 'question'
+      icon: 'question',
+      ...options
     });
   }
 }
