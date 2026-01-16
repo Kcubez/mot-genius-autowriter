@@ -1,18 +1,84 @@
 // Content Manager - Dashboard JavaScript
 
 // Loading Animation Functions
-function showLoadingAnimation() {
-  const overlay = document.getElementById('loading-overlay');
-  if (overlay) {
-    overlay.style.display = 'flex';
+const LOADING_CIRCUMFERENCE = 2 * Math.PI * 54;
+const DEFAULT_LOADING_INTERVAL = 240;
+const SHORT_LOADING_INTERVAL = 150;
+let loadingProgressInterval = null;
+let loadingProgressValue = 0;
+
+function updateLoadingProgress(value) {
+  const clampedValue = Math.max(0, Math.min(100, value));
+  const progressText = document.getElementById('loading-progress-text');
+  const progressRing = document.getElementById('loading-progress-ring');
+
+  if (progressText) {
+    progressText.textContent = `${Math.round(clampedValue)}%`;
+  }
+
+  if (progressRing) {
+    const offset = LOADING_CIRCUMFERENCE - (clampedValue / 100) * LOADING_CIRCUMFERENCE;
+    progressRing.style.strokeDashoffset = `${offset}`;
   }
 }
 
-function hideLoadingAnimation() {
+function setLoadingMessage(message) {
+  const messageElement = document.getElementById('loading-message-text');
+  if (messageElement && typeof message === 'string' && message.trim()) {
+    messageElement.textContent = message;
+  }
+}
+
+function startLoadingProgress(message, options = {}) {
   const overlay = document.getElementById('loading-overlay');
+  if (!overlay) return;
+
+  if (loadingProgressInterval) {
+    clearInterval(loadingProgressInterval);
+  }
+
+  loadingProgressValue = 0;
+  updateLoadingProgress(loadingProgressValue);
+  setLoadingMessage(message);
+
+  overlay.style.display = 'flex';
+
+  const intervalMs = options.intervalMs || DEFAULT_LOADING_INTERVAL;
+  loadingProgressInterval = setInterval(() => {
+    if (loadingProgressValue >= 99) {
+      clearInterval(loadingProgressInterval);
+      loadingProgressInterval = null;
+      loadingProgressValue = 99;
+      return;
+    }
+
+    loadingProgressValue += 1;
+    updateLoadingProgress(loadingProgressValue);
+  }, intervalMs);
+}
+
+function stopLoadingProgress() {
+  const overlay = document.getElementById('loading-overlay');
+
+  if (loadingProgressInterval) {
+    clearInterval(loadingProgressInterval);
+    loadingProgressInterval = null;
+  }
+
+  loadingProgressValue = 0;
+  updateLoadingProgress(loadingProgressValue);
+
   if (overlay) {
     overlay.style.display = 'none';
   }
+}
+
+function showLoadingAnimation(message, options) {
+  startLoadingProgress(message, options);
+}
+
+function hideLoadingAnimation() {
+  stopLoadingProgress();
 }
 
 // Dashboard specific functionality
@@ -277,7 +343,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     try {
-      showLoadingAnimation();
+      const currentLang = window.currentLanguage || 'en';
+      const generatingText =
+        typeof window.getTranslation === 'function'
+          ? window.getTranslation('Generating content...', currentLang)
+          : 'Generating content...';
+
+      const isShortContent = wordCount === '150';
+
+      showLoadingAnimation(generatingText, {
+        intervalMs: isShortContent ? SHORT_LOADING_INTERVAL : DEFAULT_LOADING_INTERVAL,
+      });
 
       // Set loading state
       generateBtn.disabled = true;
@@ -285,9 +361,6 @@ document.addEventListener('DOMContentLoaded', function () {
       if (generateMagicIcon) {
         generateMagicIcon.classList.add('hidden');
       }
-      const generatingText = window.getTranslation
-        ? window.getTranslation('Generating...')
-        : 'Generating...';
       generateBtnText.textContent = generatingText;
       contentArea.value = '';
       saveContentBtn.disabled = true;
@@ -355,7 +428,28 @@ document.addEventListener('DOMContentLoaded', function () {
         if (response.status === 413) {
           notify.error('ပုံဖိုင်က အရမ်းကြီးလွန်းပါတယ်။ ပိုသေးတဲ့ ပုံကို သုံးပါ။', 'File Too Large');
         } else if (response.status === 403) {
-          notify.error(translatedError, 'Limit Reached');
+          // Get the appropriate title and message based on error content
+          let titleKey, messageKey;
+          
+          if (data.error && data.error.includes('subscription period')) {
+            // For subscription period ended
+            titleKey = 'Your subscription period has ended';
+            messageKey = 'Your subscription period has ended. Please contact admin for renewal.';
+          } else {
+            // For generic account expired
+            titleKey = 'Your account is expired';
+            messageKey = 'Your subscription period has ended. Please contact admin for renewal.';
+          }
+          
+          // Translate both title and message
+          const expiredTitle = window.getTranslation
+            ? window.getTranslation(titleKey)
+            : titleKey;
+          const expiredMessage = window.getTranslation
+            ? window.getTranslation(messageKey)
+            : messageKey;
+          
+          notify.error(expiredMessage, expiredTitle);
         } else {
           notify.error(translatedError, 'Generation Failed');
         }
@@ -427,8 +521,11 @@ document.addEventListener('DOMContentLoaded', function () {
       ? window.getTranslation('Save Content')
       : 'Save Content';
 
+    const confirmButtonText = window.getTranslation ? window.getTranslation('Save') : 'Save';
+
     const title = await modal.prompt(promptMessage, modalTitle, defaultTitle, 'Content title...', {
       required: true,
+      confirmText: confirmButtonText,
     });
 
     if (title) {

@@ -24,7 +24,7 @@ const translations = {
     en: 'Users',
   },
   Generator: {
-    my: 'ဖန်တီးရန်',
+    my: 'Content ဖန်တီးရန်',
     en: 'Generator',
   },
   'Text Input': {
@@ -158,7 +158,7 @@ const translations = {
     en: 'Keywords',
   },
   Hashtags: {
-    my: 'ဟက်ရှ်တက်များ',
+    my: 'Hashtags',
     en: 'Hashtags',
   },
   'Call to Action (CTA)': {
@@ -198,7 +198,7 @@ const translations = {
     en: 'Saving...',
   },
   Save: {
-    my: 'သိမ်းမည်',
+    my: 'သိမ်းဆည်းမည်',
     en: 'Save',
   },
   Change: {
@@ -207,11 +207,18 @@ const translations = {
   },
 
   // Error Messages
-  "You've reached the maximum limit of generating contents for your trial plan. To continue using Genius AutoWriter without interruption, please upgrade your subscription.":
-    {
-      my: 'သင့် အစမ်းသုံး အစီအစဉ် (Trial plan) အတွက် content ထုတ်လုပ်နိုင်သည့် အများဆုံးပမာဏကို ပြည့်သွားပါပြီ။ Genius AutoWriter ကို ဆက်လက် အသုံးပြုနိုင်ရန် ကျေးဇူးပြု၍ သင်၏ စာရင်းပေးသွင်းမှုကို အဆင့်မြှင့်ပါ',
-      en: "You've reached the maximum limit of generating contents for your trial plan. To continue using Genius AutoWriter without interruption, please upgrade your subscription.",
-    },
+  'Your subscription period has ended. Please contact admin for renewal.': {
+    my: 'သင်၏ subscription period ကုန်ဆုံးသွားပါပြီ။ သက်တမ်းတိုးရန် ကျေးဇူးပြု၍ admin ကို ဆက်သွယ်ပါ။',
+    en: 'Your subscription period has ended. Please contact admin for renewal.',
+  },
+  'Your subscription period has ended': {
+    my: 'သင်၏ subscription period ကုန်ဆုံးသွားပါပြီ',
+    en: 'Your subscription period has ended',
+  },
+  'Your account is expired': {
+    my: 'သင်၏ account သက်တမ်းကုန်ဆုံးသွားပါပြီ',
+    en: 'Your account is expired',
+  },
 
   // Form Options
   'None (General)': {
@@ -296,6 +303,10 @@ const translations = {
     my: 'လော့ဂ်အင်ဝင်နေသည်...',
     en: 'Logging in...',
   },
+  'Remember me': {
+    my: 'မှတ်ထားပါ',
+    en: 'Remember me',
+  },
   Update: {
     my: 'ပြင်ဆင်မည်',
     en: 'Update',
@@ -331,7 +342,7 @@ const translations = {
     en: 'Write the main topic or draft idea of your content here',
   },
   'e.g. Young adults aged 20-30': {
-    my: 'ဥပမာ - အသက် ၂၀ မှ ၃၀ ကြား လူငယ်များ တွယ်ဝလျား',
+    my: 'ဥပမာ - အသက် ၂၀ မှ ၃၀ ကြား လူငယ်များ',
     en: 'e.g. Young adults aged 20-30',
   },
   'e.g. #DigitalMarketing #OnlineBusiness': {
@@ -399,7 +410,7 @@ const translations = {
     en: 'Keywords (separate keywords with commas)',
   },
   Hashtags: {
-    my: 'ဟက်ရှ်တက်များ',
+    my: 'Hashtags',
     en: 'Hashtags',
   },
   'Call to Action (CTA)': {
@@ -553,7 +564,7 @@ const translations = {
     en: 'Edit',
   },
   Delete: {
-    my: 'ဖျက်ရန်',
+    my: 'ဖျက်မည်',
     en: 'Delete',
   },
 
@@ -566,6 +577,10 @@ const translations = {
     my: 'ဒီ content ကို ဖျက်ချင်တာ သေချာပါသလား? ဒီလုပ်ဆောင်ချက်ကို ပြန်ပြင်လို့ မရပါဘူး။',
     en: 'Are you sure you want to delete this content? This action cannot be undone.',
   },
+  'Cancel Delete': {
+    my: 'မဖျက်တော့ပါ',
+    en: 'Cancel',
+  },
   Cancel: {
     my: 'မပြင်ဆင်တော့ပါ',
     en: 'Cancel',
@@ -573,15 +588,15 @@ const translations = {
 
   // Edit Content Page
   'Edit Content': {
-    my: 'Content ပြင်ဆင်ရန်',
+    my: 'Content ပြင်ဆင်ခြင်း',
     en: 'Edit Content',
   },
   'Update your content details': {
-    my: 'သင့် content အသေးစိတ်များကို ပြင်ဆင်ပါ',
+    my: 'Content ၏ အသေးစိတ်များကို ပြင်ဆင်ပါ',
     en: 'Update your content details',
   },
   'Update your content details below': {
-    my: 'သင့် content အသေးစိတ်များကို အောက်တွင် ပြင်ဆင်ပါ',
+    my: 'Content ၏ အသေးစိတ်များကို ပြင်ဆင်ပါ',
     en: 'Update your content details below',
   },
   Content: {
@@ -714,15 +729,15 @@ const translations = {
     en: 'Word Count',
   },
   Short: {
-    my: 'တို',
+    my: 'အတို',
     en: 'Short',
   },
   Medium: {
-    my: 'လတ်',
+    my: 'အလယ်အလတ်',
     en: 'Medium',
   },
   Long: {
-    my: 'ရှည်',
+    my: 'အရှည်',
     en: 'Long',
   },
 
@@ -731,9 +746,17 @@ const translations = {
     my: 'Content ဖန်တီးမည်',
     en: 'Generate Content',
   },
-  'Generating...': {
-    my: 'ဖန်တီးနေသည်...',
-    en: 'Generating...',
+  'Generating content...': {
+    my: 'Content ဖန်တီးနေသည်...',
+    en: 'Generating content...',
+  },
+  'Generating your content...': {
+    my: 'မိတ်ဆွေရဲ့ Content ကို ဖန်တီးနေပါတယ်...',
+    en: 'Generating your content...',
+  },
+  'Please wait a moment': {
+    my: 'ကျေးဇူးပြုပြီး ခဏစောင့်ပေးပါ',
+    en: 'Please wait a moment',
   },
   'Saving...': {
     my: 'သိမ်းနေသည်...',
@@ -854,7 +877,7 @@ const translations = {
     en: 'Capture Photo',
   },
   Cancel: {
-    my: 'ပယ်ဖျက်ရန်',
+    my: 'မပြင်ဆင်တော့ပါ',
     en: 'Cancel',
   },
   Voice: {
@@ -886,15 +909,15 @@ const translations = {
     en: 'Word Count',
   },
   Short: {
-    my: 'တို',
+    my: 'အတို',
     en: 'Short',
   },
   Medium: {
-    my: 'လတ်',
+    my: 'အလယ်အလတ်',
     en: 'Medium',
   },
   Long: {
-    my: 'ရှည်',
+    my: 'အရှည်',
     en: 'Long',
   },
   'Generated Content:': {
@@ -933,11 +956,11 @@ const translations = {
   },
   Posted: {
     my: 'တင်ပြီး',
-    en: 'Posted',
+    en: 'Published',
   },
   'Not Posted': {
     my: 'မတင်ရသေး',
-    en: 'Not Posted',
+    en: 'Draft',
   },
   'Search contents...': {
     my: 'Content များကို ရှာဖွေပါ...',
@@ -1080,6 +1103,11 @@ function applyLanguage(language) {
   // Update document language attribute
   document.documentElement.lang = language === 'my' ? 'my' : 'en';
 
+  // Dispatch custom event for countdown timer and other components
+  window.dispatchEvent(new CustomEvent('languageChanged', { 
+    detail: { language: language } 
+  }));
+
   // Update custom select dropdowns
   updateCustomSelects(language);
 }
@@ -1115,3 +1143,30 @@ function updateCustomSelects(language) {
 // Export applyLanguage and translations for use in other scripts
 window.applyLanguage = applyLanguage;
 window.translations = translations;
+
+// Helper function to change language and notify all components
+window.changeLanguage = function(language) {
+  // Update global language variable
+  currentLanguage = language;
+  window.currentLanguage = language;
+  
+  // Save to localStorage
+  localStorage.setItem('language', language);
+  
+  // Apply language changes
+  applyLanguage(language);
+  
+  // Dispatch custom event to notify other components (like expiration countdown)
+  window.dispatchEvent(new CustomEvent('languageChanged', {
+    detail: { language: language }
+  }));
+};
+
+// Helper function to get translation
+window.getTranslation = function(key, lang) {
+  const language = lang || currentLanguage || 'my';
+  if (translations[key] && translations[key][language]) {
+    return translations[key][language];
+  }
+  return key; // Return key if translation not found
+};

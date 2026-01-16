@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, SubmitField
+from wtforms import StringField, PasswordField, SelectField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Length, Email, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -45,6 +45,28 @@ def format_datetime_iso(dt):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+import re
+
+def add_facebook_trademark(content):
+    """Add trademark symbol (™️) to Facebook mentions in content.
+    
+    This function adds the trademark emoji after 'Facebook' if it doesn't 
+    already have one. Handles case-insensitive matching while preserving
+    the original case of 'Facebook'.
+    """
+    if not content:
+        return content
+    
+    # Pattern to match 'Facebook' that is NOT already followed by ™️ or ™
+    # Using negative lookahead to avoid double-adding
+    pattern = r'(Facebook)(?!\s*[™️]|™️|™)'
+    
+    # Replace with the matched text + trademark symbol
+    result = re.sub(pattern, r'\1™️', content, flags=re.IGNORECASE)
+    
+    return result
 
 app = Flask(__name__)
 project_folder = os.path.dirname(os.path.abspath(__file__))
@@ -93,6 +115,15 @@ app.config['WTF_CSRF_ENABLED'] = True
 app.config['FAVICON_VERSION'] = '3.0'  # Increment this to force favicon refresh
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB limit
 
+# Session configuration for remember me functionality
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['REMEMBER_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_DURATION'] = 2592000  # 30 days
+app.config['PERMANENT_SESSION_LIFETIME'] = 2592000  # 30 days
+
 # Database connection pool settings for better reliability
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 10,
@@ -122,6 +153,7 @@ class User(UserMixin, db.Model):
     locked_until = db.Column(db.DateTime, nullable=True)
     content_count = db.Column(db.Integer, default=0, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=True)
+    subscription_start = db.Column(db.DateTime, nullable=True)  # Subscription start date
     user_type = db.Column(db.String(20), default='normal', nullable=True)
     subscription_duration = db.Column(db.String(20), nullable=True)
     contents = db.relationship('Content', backref='author', lazy=True, cascade='all, delete-orphan')
@@ -207,6 +239,16 @@ class User(UserMixin, db.Model):
                 return expires_at_utc.astimezone(MYANMAR_TZ)
             else:
                 return self.expires_at.astimezone(MYANMAR_TZ)
+        return None
+    
+    def get_subscription_start_myanmar(self):
+        """Get subscription_start time in Myanmar timezone for display"""
+        if self.subscription_start:
+            if self.subscription_start.tzinfo is None:
+                subscription_start_utc = self.subscription_start.replace(tzinfo=timezone.utc)
+                return subscription_start_utc.astimezone(MYANMAR_TZ)
+            else:
+                return self.subscription_start.astimezone(MYANMAR_TZ)
         return None
     
     def set_expiration_from_duration(self):
@@ -297,6 +339,7 @@ class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email(), validate_gmail])
     password = PasswordField('Password', validators=[DataRequired(), validate_password_no_spaces], render_kw={"placeholder": "Enter your password"})
     api_key = StringField('Gemini API Key', render_kw={"placeholder": "Enter your Gemini API Key"})
+    remember_me = BooleanField('Remember me', default=False)
     submit = SubmitField('Login')
 
 class AdminLoginForm(FlaskForm):
@@ -417,15 +460,25 @@ def login():
         user = User.query.filter_by(email=form.email.data.lower()).first()
         
         if user:
-            # Check if account is locked
-            if user.is_account_locked():
-                flash('Account is temporarily locked due to multiple failed login attempts. Please try again later.', 'error')
-                return redirect(url_for('login', login_error='true', message='Account is temporarily locked due to multiple failed login attempts'))
             
-            # Check if account is deactivated
+            # Check if account is deactivated by admin
             if not user.is_active:
                 flash('Your account has been deactivated. Please contact an administrator.', 'error')
                 return redirect(url_for('login', login_error='true', message='Your account has been deactivated. Please contact an administrator'))
+            
+            # Check if subscription has started
+            if user.subscription_start and not user.is_admin:
+                current_time = datetime.now(timezone.utc)
+                subscription_start_utc = user.subscription_start.replace(tzinfo=timezone.utc) if user.subscription_start.tzinfo is None else user.subscription_start
+                
+                if current_time < subscription_start_utc:
+                    # Format the activation date for display
+                    subscription_start_myanmar = subscription_start_utc.astimezone(MYANMAR_TZ)
+                    activation_date_str = subscription_start_myanmar.strftime('%d %B %Y')
+                    
+                    error_message = f'Your account will be activated on {activation_date_str}. Please wait until then.'
+                    flash(error_message, 'error')
+                    return redirect(url_for('login', login_error='true', message=error_message))
             
             # Check password
             if bcrypt.check_password_hash(user.password_hash, form.password.data):
@@ -434,9 +487,7 @@ def login():
                     flash('Please use admin login for administrative access.', 'info')
                     return redirect(url_for('admin_login'))
                 
-                # Successful login - reset failed attempts and store API key
-                user.reset_failed_attempts()
-                
+                # Successful login - store API key
                 # API key is required for regular users
                 if not form.api_key.data:
                     flash('API key is required for regular users', 'error')
@@ -446,21 +497,14 @@ def login():
                 user.api_key = form.api_key.data
                 db.session.commit()
                 
-                login_user(user, remember=True)
+                login_user(user, remember=form.remember_me.data)
                 flash(f'Welcome back, {user.email}!', 'success')
                 # Add URL parameter for toast notification
                 return redirect(url_for('index', login_success='true', username=user.email))
             else:
-                # Failed password - record attempt
-                user.record_failed_login()
-                remaining_attempts = 3 - user.failed_login_attempts
-                
-                if user.failed_login_attempts >= 3:
-                    flash('Account deactivated due to 3 failed login attempts. Please contact an administrator.', 'error')
-                    return redirect(url_for('login', login_error='true', message='Account deactivated due to 3 failed login attempts'))
-                else:
-                    flash(f'Invalid password. {remaining_attempts} attempts remaining before account deactivation.', 'error')
-                    return redirect(url_for('login', login_error='true', message=f'Invalid password. {remaining_attempts} attempts remaining'))
+                # Failed password - just show error message
+                flash('Invalid email or password', 'error')
+                return redirect(url_for('login', login_error='true', message='Invalid email or password'))
         else:
             flash('Invalid email or password', 'error')
             return redirect(url_for('login', login_error='true', message='Invalid email or password'))
@@ -599,35 +643,83 @@ def create_user():
             expires_at = None
             subscription_duration = None
             
+            # Parse subscription_start FIRST (needed for expiration date validation)
+            subscription_start = None
+            subscription_start_str = request.form.get('subscription_start')
+            if subscription_start_str:
+                try:
+                    # Get timezone offset from form (in minutes)
+                    timezone_offset_minutes = request.form.get('timezone_offset', type=int)
+                    
+                    # Try datetime-local format first (YYYY-MM-DDTHH:MM)
+                    try:
+                        start_datetime_local = datetime.strptime(subscription_start_str, '%Y-%m-%dT%H:%M')
+                    except ValueError:
+                        # Fallback to date only format
+                        start_date = datetime.strptime(subscription_start_str, '%Y-%m-%d')
+                        start_datetime_local = datetime.combine(start_date.date(), datetime.min.time())
+                    
+                    # Convert from user's local timezone to UTC
+                    if timezone_offset_minutes is not None:
+                        user_tz = timezone(timedelta(minutes=-timezone_offset_minutes))
+                        start_datetime_aware = start_datetime_local.replace(tzinfo=user_tz)
+                    else:
+                        # Fallback to Myanmar timezone
+                        start_datetime_aware = start_datetime_local.replace(tzinfo=MYANMAR_TZ)
+                    
+                    start_datetime_utc = start_datetime_aware.astimezone(timezone.utc)
+                    subscription_start = start_datetime_utc.replace(tzinfo=None)
+                except ValueError as e:
+                    logging.error(f"Subscription start date parsing error: {e}")
+                    return jsonify({'error': f'Invalid subscription start date format: {e}'}), 400
+            
             if not is_admin:
                 # Normal users: use selected expiration date
                 expiration_date_str = form.expiration_date.data
                 
                 if not expiration_date_str:
-                    flash('Expiration date is required', 'error')
-                    return redirect(url_for('create_user'))
+                    return jsonify({'error': 'Expiration date is required'}), 400
                 
                 try:
-                    # Parse the date (format: YYYY-MM-DD)
-                    expiry_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+                    # Get timezone offset from form (in minutes)
+                    timezone_offset_minutes = request.form.get('timezone_offset', type=int)
                     
-                    # Validate not in the past
-                    myanmar_now = get_myanmar_time()
-                    if expiry_date.date() < myanmar_now.date():
-                        flash('Expiration date cannot be in the past', 'error')
-                        return redirect(url_for('create_user'))
+                    # Try datetime-local format first (YYYY-MM-DDTHH:MM)
+                    try:
+                        expiry_datetime_local = datetime.strptime(expiration_date_str, '%Y-%m-%dT%H:%M')
+                    except ValueError:
+                        # Fallback to date only format
+                        expiry_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+                        expiry_datetime_local = datetime.combine(expiry_date.date(), datetime.max.time())
                     
-                    # Set to end of day in Myanmar timezone (23:59:59)
-                    myanmar_expiry = datetime.combine(
-                        expiry_date.date(), 
-                        datetime.max.time()
-                    ).replace(tzinfo=MYANMAR_TZ)
+                    # Convert from user's local timezone to UTC
+                    if timezone_offset_minutes is not None:
+                        user_tz = timezone(timedelta(minutes=-timezone_offset_minutes))
+                        expiry_datetime_aware = expiry_datetime_local.replace(tzinfo=user_tz)
+                    else:
+                        # Fallback to Myanmar timezone
+                        expiry_datetime_aware = expiry_datetime_local.replace(tzinfo=MYANMAR_TZ)
                     
-                    # Convert to UTC for database storage
-                    expires_at = myanmar_expiry.astimezone(timezone.utc).replace(tzinfo=None)
+                    expiry_datetime_utc = expiry_datetime_aware.astimezone(timezone.utc)
+                    
+                    # Validate expiration date
+                    now_utc = datetime.now(timezone.utc)
+                    
+                    # If subscription_start is set, validate against subscription_start
+                    # Otherwise, validate against current time
+                    if subscription_start:
+                        subscription_start_utc = subscription_start.replace(tzinfo=timezone.utc)
+                        if expiry_datetime_utc <= subscription_start_utc:
+                            return jsonify({'error': 'Expiration date must be after the subscription start date'}), 400
+                    else:
+                        if expiry_datetime_utc <= now_utc:
+                            return jsonify({'error': 'Expiration date/time cannot be in the past'}), 400
+                    
+                    expires_at = expiry_datetime_utc.replace(tzinfo=None)
                     
                     # Calculate duration for display
-                    days_diff = (expiry_date.date() - myanmar_now.date()).days
+                    myanmar_now = get_myanmar_time()
+                    days_diff = (expiry_datetime_local.date() - myanmar_now.date()).days
                     if days_diff <= 7:
                         subscription_duration = f'{days_diff}days'
                     elif days_diff <= 31:
@@ -639,16 +731,14 @@ def create_user():
                     else:
                         subscription_duration = '1year'
                     
-                    logging.info(f"Normal user expiration set to: {expires_at} (Myanmar: {myanmar_expiry})")
+                    logging.info(f"Normal user expiration set to: {expires_at} (Local: {expiry_datetime_local})")
                     
                 except ValueError as e:
                     logging.error(f"Date parsing error: {e}")
-                    flash(f'Invalid date format: {e}', 'error')
-                    return redirect(url_for('create_user'))
+                    return jsonify({'error': f'Invalid date format: {e}'}), 400
                 except Exception as e:
                     logging.error(f"Error setting expiration date: {e}")
-                    flash(f'Error setting expiration date: {str(e)}', 'error')
-                    return redirect(url_for('create_user'))
+                    return jsonify({'error': f'Error setting expiration date: {str(e)}'}), 400
             
             try:
                 user = User(
@@ -657,6 +747,7 @@ def create_user():
                     is_admin=is_admin,
                     user_type=user_type,
                     subscription_duration=subscription_duration,
+                    subscription_start=subscription_start,
                     expires_at=expires_at
                 )
                 
@@ -756,6 +847,35 @@ def edit_user(user_id):
     
     # GET request - return user data
     if request.method == 'GET':
+        # Get timezone offset from query parameter (sent by JavaScript)
+        timezone_offset_minutes = request.args.get('timezone_offset', type=int)
+        
+        # Format subscription_start for datetime-local input (YYYY-MM-DDTHH:MM)
+        subscription_start_formatted = None
+        if user.subscription_start:
+            utc_start = user.subscription_start.replace(tzinfo=timezone.utc)
+            
+            if timezone_offset_minutes is not None:
+                user_tz = timezone(timedelta(minutes=-timezone_offset_minutes))
+                local_start = utc_start.astimezone(user_tz)
+            else:
+                local_start = utc_start.astimezone(MYANMAR_TZ)
+            
+            subscription_start_formatted = local_start.strftime('%Y-%m-%dT%H:%M')
+        
+        # Format expires_at for datetime-local input
+        expires_at_formatted = None
+        if user.expires_at:
+            utc_expiry = user.expires_at.replace(tzinfo=timezone.utc)
+            
+            if timezone_offset_minutes is not None:
+                user_tz = timezone(timedelta(minutes=-timezone_offset_minutes))
+                local_expiry = utc_expiry.astimezone(user_tz)
+            else:
+                local_expiry = utc_expiry.astimezone(MYANMAR_TZ)
+            
+            expires_at_formatted = local_expiry.strftime('%Y-%m-%dT%H:%M')
+        
         return jsonify({
             'success': True,
             'user': {
@@ -763,7 +883,8 @@ def edit_user(user_id):
                 'email': user.email,
                 'user_type': user.user_type or 'normal',
                 'subscription_duration': user.subscription_duration if hasattr(user, 'subscription_duration') else None,
-                'expires_at': user.expires_at.strftime('%Y-%m-%d') if user.expires_at else None,
+                'subscription_start': subscription_start_formatted,
+                'expires_at': expires_at_formatted,
                 'is_active': user.is_active
             }
         })
@@ -793,6 +914,37 @@ def edit_user(user_id):
         # Update user type - always set to 'normal' since we removed trial option
         user.user_type = 'normal'
         
+        # Parse subscription_start FIRST (needed for expiration date validation)
+        subscription_start_for_validation = None
+        subscription_start_str = data.get('subscription_start')
+        if subscription_start_str:
+            try:
+                # Get timezone offset (in minutes)
+                timezone_offset_str = data.get('timezone_offset')
+                timezone_offset_minutes = int(timezone_offset_str) if timezone_offset_str is not None else None
+                
+                # Try datetime-local format first (YYYY-MM-DDTHH:MM)
+                try:
+                    start_datetime_local = datetime.strptime(subscription_start_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    # Fallback to date only format
+                    start_date = datetime.strptime(subscription_start_str, '%Y-%m-%d')
+                    start_datetime_local = datetime.combine(start_date.date(), datetime.min.time())
+                
+                # Convert from user's local timezone to UTC
+                if timezone_offset_minutes is not None:
+                    user_tz = timezone(timedelta(minutes=-timezone_offset_minutes))
+                    start_datetime_aware = start_datetime_local.replace(tzinfo=user_tz)
+                else:
+                    # Fallback to Myanmar timezone
+                    start_datetime_aware = start_datetime_local.replace(tzinfo=MYANMAR_TZ)
+                
+                start_datetime_utc = start_datetime_aware.astimezone(timezone.utc)
+                subscription_start_for_validation = start_datetime_utc.replace(tzinfo=None)
+                user.subscription_start = subscription_start_for_validation
+            except ValueError as e:
+                return jsonify({'error': f'Invalid subscription start date format: {str(e)}'}), 400
+        
         # Get expiration date from request
         expiration_date_str = data.get('expiration_date')
         
@@ -800,24 +952,46 @@ def edit_user(user_id):
             return jsonify({'error': 'Expiration date is required'}), 400
         
         try:
-            # Parse the date
-            expiry_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+            # Get timezone offset (in minutes)
+            timezone_offset_str = data.get('timezone_offset')
+            timezone_offset_minutes = int(timezone_offset_str) if timezone_offset_str is not None else None
             
-            # Validate not in the past
-            myanmar_now = get_myanmar_time()
-            if expiry_date.date() < myanmar_now.date():
-                return jsonify({'error': 'Expiration date cannot be in the past'}), 400
+            # Try datetime-local format first (YYYY-MM-DDTHH:MM)
+            try:
+                expiry_datetime_local = datetime.strptime(expiration_date_str, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                # Fallback to date only format
+                expiry_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+                expiry_datetime_local = datetime.combine(expiry_date.date(), datetime.max.time())
             
-            # Set to end of day in Myanmar timezone
-            myanmar_expiry = datetime.combine(
-                expiry_date.date(),
-                datetime.max.time()
-            ).replace(tzinfo=MYANMAR_TZ)
+            # Convert from user's local timezone to UTC
+            if timezone_offset_minutes is not None:
+                user_tz = timezone(timedelta(minutes=-timezone_offset_minutes))
+                expiry_datetime_aware = expiry_datetime_local.replace(tzinfo=user_tz)
+            else:
+                # Fallback to Myanmar timezone
+                expiry_datetime_aware = expiry_datetime_local.replace(tzinfo=MYANMAR_TZ)
             
-            user.expires_at = myanmar_expiry.astimezone(timezone.utc).replace(tzinfo=None)
+            expiry_datetime_utc = expiry_datetime_aware.astimezone(timezone.utc)
+            
+            # Validate expiration date
+            now_utc = datetime.now(timezone.utc)
+            
+            # If subscription_start is set, validate against subscription_start
+            # Otherwise, validate against current time
+            if subscription_start_for_validation:
+                subscription_start_utc = subscription_start_for_validation.replace(tzinfo=timezone.utc)
+                if expiry_datetime_utc <= subscription_start_utc:
+                    return jsonify({'error': 'Expiration date must be after the subscription start date'}), 400
+            else:
+                if expiry_datetime_utc <= now_utc:
+                    return jsonify({'error': 'Expiration date/time cannot be in the past'}), 400
+            
+            user.expires_at = expiry_datetime_utc.replace(tzinfo=None)
             
             # Calculate duration for display
-            days_diff = (expiry_date.date() - myanmar_now.date()).days
+            myanmar_now = get_myanmar_time()
+            days_diff = (expiry_datetime_local.date() - myanmar_now.date()).days
             if days_diff <= 7:
                 user.subscription_duration = f'{days_diff}days'
             elif days_diff <= 31:
@@ -928,9 +1102,16 @@ def user_dashboard():
     recent_contents = Content.query.filter_by(user_id=current_user.id).order_by(Content.created_at.desc()).limit(3).all()
     total_contents = Content.query.filter_by(user_id=current_user.id).count()
     
+    # Check if account has expired
+    is_expired = False
+    if current_user.expires_at:
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        is_expired = current_user.expires_at < now_utc
+    
     return render_template('user_dashboard.html', 
                          recent_contents=recent_contents,
-                         total_contents=total_contents)
+                         total_contents=total_contents,
+                         is_expired=is_expired)
 
 @app.route('/contents/save', methods=['POST'])
 @login_required
@@ -1149,6 +1330,20 @@ def generate_content():
         except Exception as api_error:
             logging.error(f"Error configuring user's API key: {api_error}")
             return jsonify({'error': 'Invalid API key. Please check your Gemini API key.'}), 400
+        
+        # Check if user account has expired (skip for admin users)
+        if not current_user.is_admin:
+            if current_user.expires_at:
+                # Get current time in UTC
+                now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+                
+                # Check if account has expired
+                if current_user.expires_at < now_utc:
+                    logging.warning(f"User {current_user.email} attempted to generate content with expired account")
+                    return jsonify({
+                        'error': 'Your account has expired. Please contact the administrator to renew your subscription.'
+                    }), 403
+        
         # request.form is used for multipart/form-data
         data = request.form
         page_name = data.get('pageName', '')
@@ -1157,7 +1352,7 @@ def generate_content():
         
         # Validate required fields
         if not page_name.strip():
-            return jsonify({'error': 'Page Name လိုအပ်ပါတယ်။ Facebook Page သို့မဟုတ် Brand အမည် ထည့်ပါ။'}), 400
+            return jsonify({'error': 'Page Name လိုအပ်ပါတယ်။ Facebook™️ Page သို့မဟုတ် Brand အမည် ထည့်ပါ။'}), 400
         
         if not prompt.strip():
             return jsonify({'error': 'Topic လိုအပ်ပါတယ်။ Content ၏ အဓိက အကြောင်းအရာ ထည့်ပါ။'}), 400
@@ -1213,13 +1408,197 @@ def generate_content():
 
         # Content style examples for each purpose type
         content_style_examples = {
-            'informative': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nMOT Genius Auto Writer: Content Generator တွေထဲက ထူးခြားတဲ့ ရွေးချယ်မှု 🎉\n\nContent Creation လောကမှာ အချိန်ကုန်သက်သာပြီး အရည်အသွေးမြင့်တဲ့ စာသားတွေ ထွက်ဖို့ဆိုတာ ခက်ခဲတဲ့အလုပ်တစ်ခုပါ။ ဒါပေမဲ့ MOT က ဖန်တီးထားတဲ့ \"Genius Auto Writer\" ဆိုတဲ့ Content Generator က ဒီအခက်အခဲတွေကို ဖြေရှင်းပေးနိုင်တဲ့ အဖြေတစ်ခု ဖြစ်လာပါတယ်။\n\nGenius Auto Writer ရဲ့ အားသာချက်တွေက ဘာတွေလဲ? 🤔\n\n၁။ အချိန်တိုအတွင်း Content ထွက်ခြင်း: စီးပွားရေးလုပ်ငန်းတွေ၊ Content Creator တွေအတွက် အရေးကြီးဆုံးက အချိန်ပါ။\n\n၂။ Purpose အမျိုးမျိုးနဲ့ ရွေးချယ်နိုင်ခြင်း: information ပေးချင်တာလား၊ ကိုယ့် brand ကို ကြေညာချင်တာလား၊ စတဲ့ Content ပုံစံ အမျိုးမျိုးအတွက် Template တွေ ပါဝင်ပါတယ်။\n\n၃။ Plagiarism ကင်းစင်တဲ့ Content: Unique ဖြစ်ပြီး Plagiarism ကင်းပါတယ်။\n\n#ContentGenerator #GeniusAutoWriter #ContentMarketing\n---\n""",
-            'engagement': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nContent အမြန်လိုနေတဲ့ သူတွေ လက်တွေ့ကြုံဖူးတဲ့ အခက်အခဲများ! 😩\n\nတစ်ခါတလေကျရင် Content Idea တွေက ဦးနှောက်ထဲမှာ ပြည့်ကျပ်နေပြီး လက်တွေ့ စာရေးတဲ့အခါ စကားလုံးတွေ တောင့်တင်း နေဖူးလား?\n\n👉 ဒီလို အချိန်ကုန်သက်သာစေဖို့ MOT က Genius Auto Writer ကို ဖန်တီးထားတာပါ။ 💥\n\nဒါဆို သိချင်တာလေး မေးကြည့်ပါရစေ...\n\n၁။ Content Generator က Workflow ကို ဘယ်လောက်အထိ မြန်စေမယ်လို့ ထင်ပါသလဲ? 🚀\n၂။ Content Quality ပိုင်းကို စိုးရိမ်မိတာမျိုး ရှိပါသလား?\n၃။ အမြန်ဆုံး ရေးချင်တဲ့ Content အမျိုးအစား က ဘာလဲ?\n\nComment မှာ ဝေမျှပေးခဲ့ဦးနော်။ 👇💬\n\n#ContentLife #WriterStruggle #MOTGenius\n---\n""",
-            'sales': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nအချိန်မရှိဘူးလား? Content အရည်အသွေး ကျမှာကို စိုးရိမ်နေလား? 😱\n\nBusiness အတွက်ဖြစ်ဖြစ်၊ Personal Brand အတွက်ဖြစ်ဖြစ်... Social Media မှာ နေ့တိုင်း Content တင်နေရတာဟာ အချိန်ကုန်၊ လူပင်ပန်း တဲ့ အလုပ်တစ်ခုပါ။\n\nGenius Auto Writer ကို ဘာလို့ သုံးသင့်လဲ?\n\n✅ Content ထုတ်လုပ်မှု 5X အထိ မြန်ဆန်လာမယ်\n✅ Plagiarism ကင်းစင်တဲ့ Original Content\n✅ SEO/Sales အတွက် Targeting စွမ်းအား မြင့်မားမယ် 🎯\n\nအခုပဲ စတင် အသုံးပြုပြီး Content Marketing ကို နောက်တစ်ဆင့် တက်လှမ်းလိုက်ပါ။ 👇\n\n#SalesCopy #ContentGenerator #DigitalMarketingTool\n---\n""",
-            'emotional': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\nစာရေးချင်စိတ် အပြည့်နဲ့ ကွန်ပျူတာရှေ့ ထိုင်ချလိုက်ပေမဲ့... Screen က အလွတ်အတိုင်းပဲ ကျန်နေတဲ့အခါ ဘယ်လိုခံစားရလဲ? 😩\n\nစိတ်ကူးတွေက ရင်ထဲမှာ အစီအရီရှိနေတယ်။ ဒါပေမဲ့ လက်တွေ့ စာလုံးပေါင်းပြီး ရေးရတော့မယ့်အချိန်မှာ \"ဘယ်ကနေ စရမလဲ\" ဆိုတဲ့ မေးခွန်းက ကိုယ့်ကို အားအင်ကုန်ခမ်းစေတယ်။ 😔\n\nကျွန်တော်တို့ MOT အဖွဲ့သားတွေ ဒီခံစားချက်ကို နားလည်ပြီး Genius Auto Writer ကို ဖန်တီးခဲ့တာဖြစ်ပါတယ်။ 💡\n\n\"မရေးနိုင်ဘူး\" ဆိုတဲ့ ဝန်ထုပ်ဝန်ပိုးကို လွှတ်ချလိုက်ပါ။ 💖✍️\n\n#CreativeStruggles #StorytellingTool #ContentQuality\n---\n""",
-            'announcement': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\n🔥 Content Creator တွေ၊ Marketer တွေအတွက် အသုံးဝင်မယ့် tool လေးတစ်ခု! 🔥\n\nMOT ကနေ အခုပဲ မိတ်ဆက်လိုက်ပါပြီ။ \"Genius Auto Writer\" Content Generator!\n\n❌ စာရေးဖို့ အချိန်တွေ အများကြီး ပေးစရာ မလိုတော့ဘူး။\n❌ Idea မထွက်လို့ ခေါင်းခြောက်နေစရာ မလိုတော့ဘူး။\n\nGenius Auto Writer ရဲ့ ထူးခြားချက်က ဘာလဲ?\n\n✍️ Quality အကောင်းဆုံးနဲ့ တစ်ခါတည်း အသုံးပြုနိုင်တဲ့ Content များ\n🎯 Specific Targeting\n\n👉 ဒီနေ့ပဲ စမ်းသုံးကြည့်ပြီး ကိုယ့်ရဲ့ လုပ်ငန်းကို ပိုမို လွယ်ကူမြန်ဆန်၊ ထိရောက်အောင် ပြောင်းလဲလိုက်ပါ!\n\n#GeniusAutoWriter #MOT #ContentGenerator #NewProductLaunch\n---\n""",
-            'educational': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\n📣 Content ရေးသားမှုကို အဆင့်မြှင့်တင်ဖို့ Genius Auto Writer ကို ဘယ်လို ထိထိရောက်ရောက် သုံးမလဲ? (Step-by-Step Guide) 💡\n\nGenius Auto Writer အသုံးပြုနည်း အဆင့် (၃) ဆင့်:\n\nအဆင့် ၁။ Content Purpose ကို ရွေးပါ 🎯\nအဆင့် ၂။ Key Information တွေကို ထည့်သွင်းပါ ⌨️\nအဆင့် ၃။ Generate ကို နှိပ်ပြီး ချက်ချင်း အသုံးပြုပါ ✅\n\n#ContentWritingTips #DigitalMarketingMyanmar #GeniusAutoWriter\n---\n""",
-            'showcase': """\nEXAMPLE REFERENCE (Follow this style and format):\n---\n⚡️ Content ရေးသားမှုကို စက္ကန့်ပိုင်းအတွင်း အပြီးသတ်ပေးမယ့် Genius Auto Writer ရဲ့ Live Demo! 🚀\n\nGenius Auto Writer ရဲ့ 'Premium Quality' Output ကို ကြည့်လိုက်ပါ! 👀\n\nဥပမာအနေနဲ့ Product အသစ်အတွက် Promotion Content:\n\nInputs: Purpose, Product Name, Key Benefits\nOutput: Professional Content with Hook, Body, CTA\n\n#GeniusAutoWriterDemo #MOTTech #ContentTool #ProductShowcase\n---\n"""
+            'informative': """
+EXAMPLE REFERENCE (Follow this style and format):
+---
+MOT Genius Auto Writer: Content Generator တွေထဲက ထူးခြားတဲ့ ရွေးချယ်မှု 🎉
+
+Content Creation လောကမှာ အချိန်ကုန်သက်သာပြီး အရည်အသွေးမြင့်တဲ့ စာသားတွေ ထွက်ဖို့ဆိုတာ ခက်ခဲတဲ့အလုပ်တစ်ခုပါ။ ဒါပေမဲ့ MOT က ဖန်တီးထားတဲ့ "Genius Auto Writer" ဆိုတဲ့ Content Generator က ဒီအခက်အခဲတွေကို ဖြေရှင်းပေးနိုင်တဲ့ အဖြေတစ်ခု ဖြစ်လာပါတယ်။
+
+Genius Auto Writer ရဲ့ အားသာချက်တွေက ဘာတွေလဲ? 🤔
+
+၁။ အချိန်တိုအတွင်း Content ထွက်ခြင်း: စီးပွားရေးလုပ်ငန်းတွေ၊ Content Creator တွေအတွက် အရေးကြီးဆုံးက အချိန်ပါ။ Genius Auto Writer ဟာ မိနစ်ပိုင်းအတွင်းကိုပဲ ကိုယ်လိုချင်တဲ့ Format နဲ့ Content အရှည်တစ်ခုကို ထုတ်ပေးနိုင်ပါတယ်။
+
+၂။ Purpose အမျိုးမျိုးနဲ့ ရွေးချယ်နိုင်ခြင်း: information ပေးချင်တာလား၊ ကိုယ့် brand ကို ကြေညာချင်တာလား၊ စတဲ့ Content ပုံစံ အမျိုးမျိုးအတွက် ကြိုတင်ပြင်ဆင်ထားတဲ့ Template တွေ အများကြီး ပါဝင်ပါတယ်။
+
+၃။ Plagiarism ကင်းစင်တဲ့ Content: ဒီ Generator ရဲ့ စနစ်ဟာ ရှိပြီးသား စာတွေကို ကူးယူတာမျိုး မဟုတ်ဘဲ၊ သတ်မှတ်ထားတဲ့ စည်းမျဉ်းတွေနဲ့ စာသားတည်ဆောက်ပုံ (Structure) ကို အသုံးပြုပြီး စာသားအသစ်တွေကို စီစဉ်ဖွဲ့စည်းတာ ဖြစ်တဲ့အတွက် ထွက်လာတဲ့ Content တွေဟာ Unique ဖြစ်ပြီး Plagiarism ကင်းပါတယ်။
+
+Content Creator တစ်ယောက်အတွက် အခြေခံ Content တွေကို မြန်မြန်ဆန်ဆန် ဖန်တီးချင်တယ်ဆိုရင် Genius Auto Writer ဟာ တကယ်ကို အားကိုးရတဲ့ tool တစ်ခု ဖြစ်ပါတယ်။ 💡✍️
+
+#ContentGenerator #GeniusAutoWriter #ContentMarketing
+---
+""",
+            'engagement': """
+EXAMPLE REFERENCE (Follow this style and format):
+---
+Content အမြန်လိုနေတဲ့ သူတွေ လက်တွေ့ကြုံဖူးတဲ့ အခက်အခဲများ! 😩
+
+တစ်ခါတလေကျရင် Content Idea တွေက ဦးနှောက်ထဲမှာ ပြည့်ကျပ်နေပြီး လက်တွေ့ စာရေးတဲ့အခါ စကားလုံးတွေ တောင့်တင်း နေဖူးလား? ဒါမှမဟုတ် အချိန်က မရှိနေလို့ အရေးကြီးတဲ့ Post တစ်ခုကို အလျင်စလို ရေးလိုက်ရလို့ Quality ကျသွားဖူးလား? 🤔
+
+အထူးသဖြင့် စီးပွားရေးလုပ်ငန်းရှင်တွေ၊ Freelance Writer တွေနဲ့ Social Media ကို နေ့စဉ်သုံးနေရသူတွေဆိုရင် ဒီလို စိန်ခေါ်မှုတွေကို မကြာခဏ ရင်ဆိုင်ရမှာပါ။
+
+👉 ဒီလို အချိန်ကုန်သက်သာစေဖို့၊ စာရေးအားကို မြှင့်တင်ပေးဖို့ MOT က Genius Auto Writer ဆိုတဲ့ Content Generator Tool ကို ဖန်တီးထားတာပါ။ 💥
+
+ဒါဆို ကျွန်တော်တို့ သိချင်တာလေး မေးကြည့်ပါရစေ...
+
+၁။ Genius Auto Writer ဆိုတဲ့ Content Generator က Content Creation Workflow ကို ဘယ်လောက်အထိ မြန်စေမယ်လို့ ထင်ပါသလဲ? 🚀
+
+၂။ ဒီလို Tool ကိုသုံးတဲ့အခါ Content Quality ပိုင်းကို စိုးရိမ်မိတာမျိုး ရှိပါသလား? ဘယ်အချက်ကို အဓိကထားပြီး စစ်ဆေးဖြစ်မလဲ? 🧐
+
+၃။ အမြန်ဆုံး ရေးချင်တဲ့ Content အမျိုးအစား (ဥပမာ- Product Description, Caption, Blog Outline) က ဘာလဲ?
+
+ကိုယ်တိုင် ကြုံတွေ့နေရတဲ့ အတွေ့အကြုံတွေ၊ Genius Auto Writer အပေါ် အမြင်တွေကို Comment မှာ ဝေမျှပေးခဲ့ဦးနော်။ 👇💬
+
+#ContentLife #WriterStruggle #MOTGenius
+---
+""",
+            'sales': """
+EXAMPLE REFERENCE (Follow this style and format):
+---
+အချိန်မရှိဘူးလား? Content အရည်အသွေး ကျမှာကို စိုးရိမ်နေလား? 😱
+
+Business အတွက်ဖြစ်ဖြစ်၊ Personal Brand အတွက်ဖြစ်ဖြစ်... Social Media မှာ နေ့တိုင်း Content တင်နေရတာဟာ အချိန်ကုန်၊ လူပင်ပန်း တဲ့ အလုပ်တစ်ခုပါ။ Blog Post တစ်ခုရေးဖို့ နာရီပေါင်းများစွာ ပေးရတယ်။ Product Caption ကောင်းကောင်းတစ်ခု ဖန်တီးဖို့ စကားလုံးတွေ ရှာဖွေနေရတယ်။ 😓
+
+ဒါတွေ အားလုံးကို ဖြေရှင်းပေးမယ့် ကျွန်တော်တို့ MOT ရဲ့ "Content Generation Tool လေးတစ်ခုကို မိတ်ဆက်ပေးပါရစေ! 🚀
+
+Genius Auto Writer ကို ဘာလို့ သုံးသင့်လဲ? (ရလဒ်တွေကိုပဲ ကြည့်ပါ!)
+
+✅ Content ထုတ်လုပ်မှု 5X အထိ မြန်ဆန်လာမယ်:
+Blog Outline၊ Email Header၊ Sales Copy၊ Facebook™️ Ad Caption တွေအတွက် စက္ကန့်ပိုင်းအတွင်း Professional Draft တွေ ရလာမယ်။
+
+✅ Plagiarism ကင်းစင်တဲ့ Original Content:
+ကျွန်တော်တို့ရဲ့ Tool ဟာ ရှိပြီးသားစာတွေကို ကူးယူတာ မဟုတ်ဘဲ၊ User သတ်မှတ်ချက်အတိုင်း စာသားဖွဲ့စည်းပုံစည်းမျဉ်းတွေ (Rule-Based Structure) နဲ့ စာသားအသစ်တွေကို စနစ်တကျ ပြန်စီပေးတာကြောင့် Content တွေဟာ Unique ဖြစ်ပါတယ်။
+
+✅ SEO/Sales အတွက် Targeting စွမ်းအား မြင့်မားမယ်:
+ကိုယ်ထည့်လိုက်တဲ့ Keywords တွေ၊ ရောင်းချမယ့် Product ရဲ့ အချက်အလက်တွေနဲ့ ကိုက်ညီတဲ့ စာသားတွေကို တိတိကျကျ ဖန်တီးပေးတာကြောင့် ထွက်လာတဲ့ Content တွေဟာ Target Audience ကို ဆွဲဆောင်ဖို့ ပိုမို ထိရောက်တယ်။ 🎯
+
+အခုပဲ Genius Auto Writer ကို စတင် အသုံးပြုပြီး Content Marketing ကို နောက်တစ်ဆင့် တက်လှမ်းလိုက်ပါ။ 👇
+
+#SalesCopy #ContentGenerator #DigitalMarketingTool
+---
+""",
+            'emotional': """
+EXAMPLE REFERENCE (Follow this style and format):
+---
+စာရေးချင်စိတ် အပြည့်နဲ့ ကွန်ပျူတာရှေ့ ထိုင်ချလိုက်ပေမဲ့... Screen က အလွတ်အတိုင်းပဲ ကျန်နေတဲ့အခါ ဘယ်လိုခံစားရလဲ? 😩
+
+စိတ်ကူးတွေက ရင်ထဲမှာ အစီအရီရှိနေတယ်။ ဒီနေ့ ဘာတင်ရမယ်၊ ဘယ်လို Message ပေးရမယ်ဆိုတာလည်း သိတယ်။ ဒါပေမဲ့ လက်တွေ့ စာလုံးပေါင်းပြီး ရေးရတော့မယ့်အချိန်မှာ "ဘယ်ကနေ စရမလဲ" ဆိုတဲ့ မေးခွန်းက ကိုယ့်ကို အားအင်ကုန်ခမ်းစေတယ်။ 😔
+
+တစ်ခါတလေကျရင် ဒီလို အချိန်တွေကြောင့် Quality ကောင်းတဲ့ Content မထုတ်နိုင်ဘဲ "ဒီတစ်ခါတော့ ဒီအတိုင်းပဲ တင်လိုက်တော့မယ်" ဆိုပြီး လက်လျှော့လိုက်ရတာမျိုးတွေ မကြာခဏ ကြုံဖူးမှာပါ။
+
+ကျွန်တော်တို့ MOT အဖွဲ့သားတွေ ဒီခံစားချက်ကို နားလည်ပြီး လုပ်ငန်းရှင်တွေရဲ့ စိတ်ကူးတွေ ပျောက်ဆုံးမသွားစေဖို့ Genius Auto Writer ကို ဖန်တီးခဲ့တာဖြစ်ပါတယ်။ 💡
+
+"မရေးနိုင်ဘူး" ဆိုတဲ့ ဝန်ထုပ်ဝန်ပိုးကို လွှတ်ချလိုက်ပါ။ ကိုယ့်ရဲ့ စိတ်ကူးတွေကို လွတ်လပ်စွာ စီးဆင်းခွင့်ပေးပြီး Genius Auto Writer ရဲ့ စွမ်းအားနဲ့ တွဲဖက်လိုက်ပါ။ 💖✍️
+
+#CreativeStruggles #StorytellingTool #ContentQuality
+---
+""",
+            'announcement': """
+EXAMPLE REFERENCE (Follow this style and format):
+---
+🔥 Content Revolution ၏ အစ: Genius Auto Writer Launch Event! 🔥
+
+Content Marketing လောကကို လှုပ်ခတ်စေမယ့်၊ Content ရေးသားခြင်း နည်းလမ်းတွေကို လုံးဝပြောင်းလဲပစ်မယ့် tool အသစ်တစ်ခု မိတ်ဆက်ပွဲကို MOT ကနေ ခမ်းနားစွာ ကျင်းပတော့မှာ ဖြစ်ပါတယ်။
+
+အချိန်ကုန်ခံပြီး အားထုတ်စိုက်ထုတ်နေရတဲ့ Content ရေးသားမှုတွေ၊ Idea ညှစ်ထုတ်ရတဲ့ နေ့ရက်တွေကို ရပ်တန့်ဖို့ အချိန်တန်ပါပြီ။ အခုဆိုရင် Content Quality အကောင်းဆုံးနဲ့ Facebook™️ Page မှာ ချက်ချင်းယူသုံးလို့ရတဲ့ Post တွေကို စက္ကန့်ပိုင်းအတွင်း ဖန်တီးပေးနိုင်တဲ့ Genius Auto Writer ရဲ့ စွမ်းဆောင်ရည်တွေကို ကိုယ်တိုင် မြင်တွေ့ရမယ့် ပွဲပါ။
+
+🎯 ဘာလို့ ဒီပွဲကို မဖြစ်မနေ လာရောက်သင့်လဲ?
+
+✅ MOT ရဲ့ Smart Content Engine တစ်ခုဖြစ်တဲ့ Genius Auto Writer ဟာ တော်ရုံ Content Generator တွေလို AI စနစ်ကို အခြေခံပြီး ရေးထားတာမျိုး မဟုတ်ပါဘူး။ Content Writer ဝါရင့်တွေရဲ့ အောင်မြင်ပြီးသား ရောင်းအားတက် နည်းစနစ်တွေ၊ စိတ်ပညာပေါ် အခြေခံတဲ့ စာသား Framework တွေကို ပေါင်းစပ်တည်ဆောက်ထားတာ ဖြစ်ပါတယ်။
+
+✅ တကယ့်စွမ်းဆောင်ရည်ကို ကိုယ်တိုင်တွေ့ရမယ်: Content Writer ငှားစရာမလိုဘဲ၊ စျေးကြီးပေးပြီး Agency ကိုအပ်စရာမလိုဘဲ Content Quality အမြင့်ဆုံးတွေကို ဘယ်လို ထုတ်ယူနိုင်လဲဆိုတာကို Live Demo ပြသသွားမှာပါ။
+
+✅ Business Opportunity: Content အတွက် အချိန်ကုန်၊ လူကုန် မခံချင်တဲ့ Business Owner တွေ၊ Marketer တွေအတွက် တစ်လလုံး Content အကန့်အသတ်မရှိ ထုတ်နိုင်မယ့် ဒီ Tool ကို ဘယ်လို အကျိုးရှိရှိ သုံးနိုင်မလဲဆိုတဲ့ Business Strategy တွေကိုပါ မျှဝေပေးသွားမှာပါ။
+
+✅ Q&A Session: Genius Auto Writer နဲ့ပတ်သက်ပြီး သိချင်တာတွေ၊ စိတ်ဝင်စားတာတွေကို တိုက်ရိုက်မေးမြန်းနိုင်မယ့် အခွင့်အရေး ရရှိမှာပါ။
+
+📅 ပွဲကျင်းပမည့် နေ့ရက်နှင့် အချိန်:
+2025 ခုနှစ်၊ နိုဝင်ဘာလ ၁၀ ရက် (တနင်္လာနေ့)
+နံနက် ၁၀ နာရီ မှ နေ့လယ် ၁၂ နာရီအထိ
+
+📌 နေရာ:
+(ရန်ကုန်မြို့ရှိ TBD ခန်းမအမည် / Online Webinar ဆိုပါက Zoom Link ကို ဖော်ပြပါမည်)
+
+Content Marketing မှာ ပြိုင်ဘက်တွေထက် တစ်လှမ်းသာချင်သူတွေ၊ Content ရေးသားမှုအတွက် စိန်ခေါ်နေသူတွေ ဒီအခွင့်အရေးကို လက်မလွတ်သင့်ပါဘူး။
+
+ပွဲတက်ရောက်ရန် စိတ်ဝင်စားပါက Messenger မှာ "Launch" လို့ စာတိုပေးပို့ပြီး အမြန်ဆုံး ကြိုတင်စာရင်းပေးလိုက်ပါ။
+
+#GeniusAutoWriterLaunch
+#MOT
+#ContentGenerator
+#EventAnnouncement
+#MyanmarBusiness
+#DigitalMarketingMyanmar
+#ContentStrategy
+#NewProduct
+---
+""",
+            'educational': """
+EXAMPLE REFERENCE (Follow this style and format):
+---
+📣 Content ရေးသားမှုကို အဆင့်မြှင့်တင်ဖို့ Genius Auto Writer ကို ဘယ်လို ထိထိရောက်ရောက် သုံးမလဲ? (Step-by-Step Guide) 💡
+
+Page အတွက် Quality ကောင်းတဲ့ Content တွေကို အချိန်ကုန်သက်သာစွာ ထုတ်ယူချင်သူတွေအတွက် MOT ရဲ့ "Genius Auto Writer" Content Generator ဟာ အကောင်းဆုံး tool တစ်ခုပါ။
+
+Genius Auto Writer အသုံးပြုနည်း အဆင့် (၃) ဆင့်:
+
+အဆင့် ၁။ Content Purpose ကို ရွေးပါ 🎯
+
+Genius Auto Writer ကို စတင်အသုံးပြုတာနဲ့ အရင်ဆုံး သင့် Content ရဲ့ ရည်ရွယ်ချက် (Purpose) ကို ရွေးချယ်ပေးရပါမယ်။
+
+• ကြော်ငြာ/Promotion: ပစ္စည်းအသစ် မိတ်ဆက်တာ၊ Discount ပေးတာမျိုးတွေအတွက်။
+• Engagement: Comment, Like, Share များဖို့ မေးခွန်းထုတ်တာ၊ ဂိမ်းဆော့ခိုင်းတာမျိုး။
+• Announcement/Update: သတင်း၊ အစီအစဉ် အသစ်တွေ ကြေညာဖို့။
+
+အဆင့် ၂။ Key Information တွေကို ထည့်သွင်းပါ ⌨️
+
+ဒါက အရေးအကြီးဆုံး အပိုင်းပါ။ သင်ထုတ်ယူချင်တဲ့ Content နဲ့ ပတ်သက်တဲ့ အချက်အလက် (Key Information) တွေကို တိတိကျကျ ရိုက်ထည့်ပေးရပါမယ်။
+
+• ထုတ်ကုန်/ဝန်ဆောင်မှု နာမည်: (ဥပမာ: MOT Digital Course)
+• ထူးခြားချက်/အကျိုးကျေးဇူး: (ဥပမာ: တစ်လအတွင်း Sale တက်စေမယ့် နည်းဗျူဟာ)
+• Target Audience: (ဥပမာ: အွန်လိုင်းစီးပွားရေး လုပ်ငန်းရှင်များ)
+
+အဆင့် ၃။ Generate ကို နှိပ်ပြီး ချက်ချင်း အသုံးပြုပါ ✅
+
+အဆင့် (၁) နဲ့ (၂) မှာ လိုအပ်တဲ့ အချက်အလက်တွေ ဖြည့်ပြီးတာနဲ့ "Generate" ခလုတ်ကို နှိပ်လိုက်ပါ။ စက္ကန့်ပိုင်းအတွင်းမှာ Facebook™️ Page မှာ တိုက်ရိုက်ယူသုံးလို့ရတဲ့ Content ကို ရရှိပါလိမ့်မယ်။
+
+#ContentWritingTips #DigitalMarketingMyanmar #GeniusAutoWriter
+---
+""",
+            'showcase': """
+EXAMPLE REFERENCE (Follow this style and format):
+---
+⚡️ Content ရေးသားမှုကို စက္ကန့်ပိုင်းအတွင်း အပြီးသတ်ပေးမယ့် Genius Auto Writer ရဲ့ Live Demo! 🚀
+
+Page Admin တွေ၊ Content Creator တွေ စိတ်ပူနေရတဲ့ "Content Quality" နဲ့ "အချိန်ကုန်သက်သာမှု" ဆိုတဲ့ ပြဿနာနှစ်ခုကို MOT ရဲ့ Genius Auto Writer နဲ့ ဘယ်လို ဖြေရှင်းနိုင်လဲဆိုတာ ဒီနေ့ လက်တွေ့ပြသသွားပါမယ်။
+
+Genius Auto Writer က AI စနစ်မဟုတ်ဘဲ၊ Content ပညာရှင်တွေရဲ့ ရေးသားမှုပုံစံနဲ့ Facebook™️ Trend တွေကို အခြေခံပြီး တည်ဆောက်ထားတဲ့ MOT ရဲ့ ကိုယ်ပိုင် Generator ဖြစ်ပါတယ်။
+
+Genius Auto Writer ရဲ့ 'Premium Quality' Output ကို ကြည့်လိုက်ပါ! 👀
+
+ဥပမာအနေနဲ့၊ ကျွန်တော်တို့ရဲ့ Product အသစ်ဖြစ်တဲ့ 'MOT Sales Booster Course' အတွက် Promotion Content တစ်ခု လိုချင်တယ်ဆိုပါစို့။
+
+Inputs (ထည့်သွင်းရမယ့် အချက်အလက်များ):
+
+1. Content Purpose: Promotion / Course Sales
+2. Product Name: MOT Sales Booster Course
+3. Key Benefits:
+   • တစ်ပတ်အတွင်း Sales 100% တက်စေမယ့် လျှို့ဝှက်ချက်
+   • Target Audience ကို စနစ်တကျ ရှာဖွေနည်း
+   • လက်တွေ့ အကောင်အထည်ဖော်ရုံပဲ လိုတဲ့ Practical Strategy တွေ
+
+Output (Genius Auto Writer က ထုတ်ပေးမယ့် Content ပုံစံ):
+
+✨ ခေါင်းစဉ်: ❌ Sale တွေကျလို့ စိတ်ညစ်မနေပါနဲ့! ၇ ရက်အတွင်း ၁၀၀% တိုးတက်စေမယ့် လျှို့ဝှက်ချက်!
+
+📈 စာကိုယ် (Body):
+Online Business လုပ်ငန်းရှင်တွေအတွက် Sale ပိုတက်ဖို့ ခေါင်းစားနေရပြီလား? MOT Sales Booster Course ကို စတင်လိုက်ပါ။ ဒီ Course က တခြား Course တွေလို သီအိုရီတွေချည်း မဟုတ်ဘဲ၊ လက်တွေ့အသုံးချနိုင်မယ့် Practical Strategy တွေကိုပဲ အဓိကထား သင်ပေးမှာပါ။
+
+➡️ CTA: အချိန်မဆွဲပါနဲ့၊ ဒီနေ့ပဲ စာရင်းသွင်းပြီး သင်တန်းကြေး Discount ရယူလိုက်ပါ။
+
+#GeniusAutoWriterDemo #MOTTech #ContentTool #ProductShowcase
+---
+"""
         }
         
         # Get the example for the selected purpose
@@ -1293,7 +1672,9 @@ Avoid/Don't include: {negative_constraints}{reference_section}
 
         # Ensure response has text content
         if hasattr(response, 'text') and response.text:
-            return jsonify({'content': response.text})
+            # Apply Facebook trademark processing to generated content
+            processed_content = add_facebook_trademark(response.text)
+            return jsonify({'content': processed_content})
         else:
             logging.error("Gemini response has no text content")
             return jsonify({'error': 'Failed to generate content. Please try again.'}), 500

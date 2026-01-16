@@ -190,42 +190,8 @@ block head %}
                   class="status-badge {% if content.published %}status-published{% else %}status-draft{% endif %}"
                 >
                   {% if content.published %}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
                   <span data-translate="Posted">Posted</span>
                   {% else %}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"
-                    />
-                    <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
-                    <path
-                      d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
-                    />
-                    <path d="m2 2 20 20" />
-                  </svg>
                   <span data-translate="Not Posted">Not Posted</span>
                   {% endif %}
                 </span>
@@ -676,15 +642,7 @@ block head %}
         </div>
       </form>
     </div>
-    <div
-      style="
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        padding: 1.5rem 2rem;
-        border-top: 1px solid #e5e7eb;
-      "
-    >
+    <div class="edit-modal-footer">
       <button class="btn-secondary" onclick="closeEditModal()" data-translate="Cancel">
         Cancel
       </button>

@@ -3,7 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="{% block description %}Genius AutoWriter - AI-powered content generation tool for Myanmar. Create high-quality content in Myanmar and English using advanced AI technology.{% endblock %}" />
+    <meta name="description" content="{% block description %}Genius AutoWriter - Content generation tool for Myanmar. Create high-quality content in Myanmar and English using advanced technology.{% endblock %}" />
+    
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://mot-genius-autowriter.vercel.app/" />
+    <meta property="og:title" content="{% block og_title %}Genius AutoWriter - Content Generator{% endblock %}" />
+    <meta property="og:description" content="{% block og_description %}Create high-quality content in Myanmar and English using advanced technology. Professional content generation tool for businesses and creators.{% endblock %}" />
+    <meta property="og:image" content="{{ url_for('static', filename='images/MOT.d21a8f07.png', _external=True) }}" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:site_name" content="Genius AutoWriter" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="{% block twitter_title %}Genius AutoWriter - Content Generator{% endblock %}" />
+    <meta name="twitter:description" content="{% block twitter_description %}Create high-quality content in Myanmar and English using advanced technology.{% endblock %}" />
+    <meta name="twitter:image" content="{{ url_for('static', filename='images/MOT.d21a8f07.png', _external=True) }}" />
+    
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/MOT.d21a8f07.png') }}" />
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/MOT.d21a8f07.png') }}" />
@@ -332,7 +350,9 @@
                   {% endif %}
                 </div>
                 <p style="color: #9ca3af; font-size: 0.875rem;">{{ current_user.email }}</p>
-                <p style="color: #ef4444; font-size: 0.875rem; font-weight: 500;" id="expiration-countdown-desktop" data-expiration="{{ current_user.expires_at.isoformat() if current_user.expires_at else '' }}">Expires in: <span class="countdown-timer">{{ current_user.expires_at.strftime('%H:%M:%S') if current_user.expires_at else 'N/A' }}</span></p>
+                {% if not current_user.is_admin and current_user.expires_at %}
+                <p style="color: #ef4444; font-size: 0.875rem; font-weight: 500;" id="expiration-countdown-desktop" data-expiration="{{ (current_user.expires_at.isoformat() + 'Z') if current_user.expires_at else '' }}">Expires in: <span class="countdown-timer">{{ current_user.expires_at.strftime('%H:%M:%S') if current_user.expires_at else 'N/A' }}</span></p>
+                {% endif %}
               </div>
             </div>
 
@@ -470,7 +490,9 @@
                     {% endif %}
                   </div>
                   <p class="text-gray-400 text-sm">{{ current_user.email }}</p>
-                  <p class="text-red-500 text-sm font-medium" id="expiration-countdown-mobile" data-expiration="{{ current_user.expires_at.isoformat() if current_user.expires_at else '' }}">Expires in: <span class="countdown-timer">{{ current_user.expires_at.strftime('%H:%M:%S') if current_user.expires_at else 'N/A' }}</span></p>
+                  {% if not current_user.is_admin and current_user.expires_at %}
+                  <p class="text-red-500 text-sm font-medium" id="expiration-countdown-mobile" data-expiration="{{ (current_user.expires_at.isoformat() + 'Z') if current_user.expires_at else '' }}">Expires in: <span class="countdown-timer">{{ current_user.expires_at.strftime('%H:%M:%S') if current_user.expires_at else 'N/A' }}</span></p>
+                  {% endif %}
                 </div>
               </div>
 
@@ -694,22 +716,20 @@
             e.stopPropagation();
             const lang = this.getAttribute('data-lang');
             selectedLang = lang;
-            localStorage.setItem('language', lang);
+            
+            // Use window.changeLanguage to notify all components
+            if (typeof window.changeLanguage === 'function') {
+              window.changeLanguage(lang);
+            } else {
+              // Fallback for older code
+              localStorage.setItem('language', lang);
+              if (typeof applyLanguage === 'function') {
+                applyLanguage(lang);
+              }
+            }
+            
             updateLanguageUI(lang);
             languageDropdown.classList.add('hidden');
-            
-            // Trigger language change event for language-switcher.js
-            const event = new Event('change');
-            const hiddenSelect = document.getElementById('language-selector');
-            if (hiddenSelect) {
-              hiddenSelect.value = lang;
-              hiddenSelect.dispatchEvent(event);
-            }
-            
-            // Also directly call applyLanguage if available
-            if (typeof applyLanguage === 'function') {
-              applyLanguage(lang);
-            }
           });
         });
         
@@ -719,22 +739,20 @@
             e.stopPropagation();
             const lang = this.getAttribute('data-lang');
             selectedLang = lang;
-            localStorage.setItem('language', lang);
+            
+            // Use window.changeLanguage to notify all components
+            if (typeof window.changeLanguage === 'function') {
+              window.changeLanguage(lang);
+            } else {
+              // Fallback for older code
+              localStorage.setItem('language', lang);
+              if (typeof applyLanguage === 'function') {
+                applyLanguage(lang);
+              }
+            }
+            
             updateLanguageUI(lang);
             languageDropdownDesktopMenu.classList.add('hidden');
-            
-            // Trigger language change event for language-switcher.js
-            const event = new Event('change');
-            const hiddenSelect = document.getElementById('language-selector');
-            if (hiddenSelect) {
-              hiddenSelect.value = lang;
-              hiddenSelect.dispatchEvent(event);
-            }
-            
-            // Also directly call applyLanguage if available
-            if (typeof applyLanguage === 'function') {
-              applyLanguage(lang);
-            }
           });
         });
         
@@ -744,22 +762,20 @@
             e.stopPropagation();
             const lang = this.getAttribute('data-lang');
             selectedLang = lang;
-            localStorage.setItem('language', lang);
+            
+            // Use window.changeLanguage to notify all components
+            if (typeof window.changeLanguage === 'function') {
+              window.changeLanguage(lang);
+            } else {
+              // Fallback for older code
+              localStorage.setItem('language', lang);
+              if (typeof applyLanguage === 'function') {
+                applyLanguage(lang);
+              }
+            }
+            
             updateLanguageUI(lang);
             languageDropdownMobile.classList.add('hidden');
-            
-            // Trigger language change event for language-switcher.js
-            const event = new Event('change');
-            const hiddenSelect = document.getElementById('language-selector');
-            if (hiddenSelect) {
-              hiddenSelect.value = lang;
-              hiddenSelect.dispatchEvent(event);
-            }
-            
-            // Also directly call applyLanguage if available
-            if (typeof applyLanguage === 'function') {
-              applyLanguage(lang);
-            }
           });
         });
         
@@ -788,22 +804,20 @@
             e.stopPropagation();
             const lang = this.getAttribute('data-lang');
             selectedLang = lang;
-            localStorage.setItem('language', lang);
+            
+            // Use window.changeLanguage to notify all components
+            if (typeof window.changeLanguage === 'function') {
+              window.changeLanguage(lang);
+            } else {
+              // Fallback for older code
+              localStorage.setItem('language', lang);
+              if (typeof applyLanguage === 'function') {
+                applyLanguage(lang);
+              }
+            }
+            
             updateLanguageUI(lang);
             languageDropdownMobileMenu.classList.add('hidden');
-            
-            // Trigger language change event for language-switcher.js
-            const event = new Event('change');
-            const hiddenSelect = document.getElementById('language-selector');
-            if (hiddenSelect) {
-              hiddenSelect.value = lang;
-              hiddenSelect.dispatchEvent(event);
-            }
-            
-            // Also directly call applyLanguage if available
-            if (typeof applyLanguage === 'function') {
-              applyLanguage(lang);
-            }
           });
         });
         

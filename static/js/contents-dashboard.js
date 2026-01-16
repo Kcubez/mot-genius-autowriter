@@ -1,5 +1,42 @@
 // Contents Dashboard JavaScript
 
+function getActiveLanguage() {
+  const docLang = document.documentElement?.lang;
+  if (docLang) {
+    return docLang.startsWith('my') ? 'my' : 'en';
+  }
+  if (window.currentLanguage) {
+    return window.currentLanguage;
+  }
+  try {
+    return localStorage.getItem('language') || 'my';
+  } catch (error) {
+    return 'my';
+  }
+}
+
+function getLocalizedText(key, fallbackMy, fallbackEn) {
+  const lang = getActiveLanguage();
+  if (window.getTranslation) {
+    try {
+      return window.getTranslation(key, lang);
+    } catch (error) {
+      // fallback handled below
+    }
+  }
+  return lang === 'my' ? fallbackMy : fallbackEn;
+}
+
+function buildStatusBadgeContent(isPublished) {
+  const translationKey = isPublished ? 'Posted' : 'Not Posted';
+  const localizedText = getLocalizedText(
+    translationKey,
+    isPublished ? 'တင်ပြီး' : 'မတင်ရသေး',
+    isPublished ? 'Posted' : 'Not Posted'
+  );
+  return `<span data-translate="${translationKey}">${localizedText}</span>`;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   const searchInput = document.getElementById('search-input');
   const filterSelect = document.getElementById('filter-select');
@@ -97,12 +134,12 @@ document.addEventListener('DOMContentLoaded', function () {
           if (isPublished) {
             statusBadge.classList.remove('status-draft');
             statusBadge.classList.add('status-published');
-            statusBadge.innerHTML = '<span data-translate="Posted">Posted</span>';
+            statusBadge.innerHTML = buildStatusBadgeContent(true);
             contentItem.dataset.published = 'true';
           } else {
             statusBadge.classList.remove('status-published');
             statusBadge.classList.add('status-draft');
-            statusBadge.innerHTML = '<span data-translate="Not Posted">Not Posted</span>';
+            statusBadge.innerHTML = buildStatusBadgeContent(false);
             contentItem.dataset.published = 'false';
           }
 
@@ -312,9 +349,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const confirmText = window.getTranslation ? window.getTranslation('Delete') : 'Delete';
 
+      const cancelText = window.getTranslation ? window.getTranslation('Cancel Delete') : 'Cancel';
+
       return await window.modal.confirm(`${message}\n\n"${contentTitle}"`, title, {
         type: 'danger',
         confirmText: confirmText,
+        cancelText: cancelText,
       });
     } else {
       // Fallback to native confirm
@@ -436,7 +476,7 @@ function openViewModal(contentId) {
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            <span data-translate="Posted">Posted</span>
+            ${buildStatusBadgeContent(true)}
           `;
         } else {
           viewStatusBadge.className = 'status-badge status-draft';
@@ -447,7 +487,7 @@ function openViewModal(contentId) {
               <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/>
               <path d="m2 2 20 20"/>
             </svg>
-            <span data-translate="Not Posted">Not Posted</span>
+            ${buildStatusBadgeContent(false)}
           `;
         }
 
@@ -673,10 +713,7 @@ function updateContent() {
           notify.success('Content updated successfully!', 'Success');
         }
 
-        // Reload page to reflect changes
-        setTimeout(() => {
-          location.reload();
-        }, 1000);
+        // No need to reload - UI is already updated
       } else {
         // Reset button state on error
         if (updateButton && updateSpinner && updateButtonText) {

@@ -127,12 +127,12 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
-                Created
+                Subscription Start
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
-                Expired
+                Expired At
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
@@ -210,13 +210,17 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
                 {% endif %}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                {{ user.created_at.strftime('%d/%m/%y') }}
+                {% if user.subscription_start %}
+                  <span class="utc-datetime" data-utc="{{ user.subscription_start.strftime('%Y-%m-%d %H:%M:%S') }}">Loading...</span>
+                {% else %}
+                  <span class="text-gray-400 text-xs">N/A</span>
+                {% endif %}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                 {% if user.is_admin %}
                 <span class="text-gray-400 text-xs">N/A</span>
                 {% elif user.expires_at %}
-                {{ user.expires_at.strftime('%d/%m/%y') }}
+                  <span class="utc-datetime" data-utc="{{ user.expires_at.strftime('%Y-%m-%d %H:%M:%S') }}">Loading...</span>
                 {% else %}
                 <span class="text-gray-400 text-xs">N/A</span>
                 {% endif %}
@@ -401,46 +405,28 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
         <!-- Hidden User Type - always set to normal -->
         <input type="hidden" id="edit-user-type" name="user_type" value="normal">
 
+        <!-- Subscription Start -->
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Subscription Start</label>
+          <input
+            type="datetime-local"
+            id="edit-subscription-start"
+            name="subscription_start"
+            class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
+          />
+        </div>
+
         <!-- Expiration Date -->
         <div id="edit-expiration-field">
           <label class="block text-sm font-medium text-white mb-2">Expiration Date</label>
           
-          <!-- Quick Duration Buttons -->
-          <div class="mb-4" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
-            <button type="button" onclick="setEditQuickDuration(7)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              7 Days
-            </button>
-            <button type="button" onclick="setEditQuickDuration(30)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              1 Month
-            </button>
-            <button type="button" onclick="setEditQuickDuration(90)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              3 Months
-            </button>
-            <button type="button" onclick="setEditQuickDuration(180)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              6 Months
-            </button>
-            <button type="button" onclick="setEditQuickDuration(365)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s; grid-column: span 2;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              1 Year
-            </button>
-          </div>
-          
-          <!-- Date Picker -->
+          <!-- Date and Time Picker -->
           <input
-            type="date"
+            type="datetime-local"
             id="edit-expiration-date"
             name="expiration_date"
             class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
-            onchange="updateEditPreview()"
           />
-          
-          <!-- Preview -->
-          <div id="edit-expiry-preview" class="mt-2 text-sm text-gray-300">
-            <span class="font-medium">Will expire on:</span> <span id="edit-expiry-date-display" class="text-red-400">-</span>
-          </div>
-          
-          <p class="text-xs text-gray-400 mt-1">
-            Required for Normal Users only. Select a future date.
-          </p>
         </div>
 
         <!-- Action Buttons -->
@@ -534,47 +520,30 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
         <!-- Hidden User Type - always set to normal -->
         <input type="hidden" id="create-user-type" name="user_type" value="normal">
 
+        <!-- Subscription Start -->
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Subscription Start</label>
+          <input
+            type="datetime-local"
+            id="create-subscription-start"
+            name="subscription_start"
+            class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
+          />
+        </div>
+
         <!-- Expiration Date -->
         <div id="create-expiration-field">
           <label class="block text-sm font-medium text-white mb-2">Expiration Date</label>
           
-          <!-- Quick Duration Buttons -->
-          <div class="mb-4" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
-            <button type="button" onclick="setCreateQuickDuration(7)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              7 Days
-            </button>
-            <button type="button" onclick="setCreateQuickDuration(30)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              1 Month
-            </button>
-            <button type="button" onclick="setCreateQuickDuration(90)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              3 Months
-            </button>
-            <button type="button" onclick="setCreateQuickDuration(180)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              6 Months
-            </button>
-            <button type="button" onclick="setCreateQuickDuration(365)" style="padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 500; background-color: #374151; color: white; border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.2s; grid-column: span 2;" onmouseover="this.style.backgroundColor='#4B5563'" onmouseout="this.style.backgroundColor='#374151'">
-              1 Year
-            </button>
-          </div>
-          
-          <!-- Date Picker -->
+          <!-- Date and Time Picker -->
           <input
-            type="date"
+            type="datetime-local"
             id="create-expiration-date"
             name="expiration_date"
             class="w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 text-black bg-white"
             onchange="updateCreatePreview()"
             required
           />
-          
-          <!-- Preview -->
-          <div id="create-expiry-preview" class="mt-2 text-sm text-gray-300">
-            <span class="font-medium">Will expire on:</span> <span id="create-expiry-date-display" class="text-red-400">-</span>
-          </div>
-          
-          <p class="text-xs text-red-400 mt-1">
-            <span class="font-semibold">* Required:</span> Select a future date for user expiration.
-          </p>
         </div>
 
         <!-- Action Buttons -->
@@ -658,6 +627,42 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('Error parsing flash message:', e);
     }
   }
+
+  // Convert UTC timestamps to browser timezone
+  function convertUTCToLocal() {
+    const utcElements = document.querySelectorAll('.utc-datetime');
+    utcElements.forEach(element => {
+      const utcString = element.getAttribute('data-utc');
+      if (utcString) {
+        try {
+          // Parse UTC time (format: YYYY-MM-DD HH:MM:SS)
+          const utcDate = new Date(utcString + ' UTC');
+          
+          // Format date part
+          const year = utcDate.getFullYear();
+          const month = String(utcDate.getMonth() + 1).padStart(2, '0');
+          const day = String(utcDate.getDate()).padStart(2, '0');
+          
+          // Format time part in 12-hour format with AM/PM
+          let hours = utcDate.getHours();
+          const minutes = String(utcDate.getMinutes()).padStart(2, '0');
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12;
+          hours = hours ? hours : 12; // 0 should be 12
+          const hoursFormatted = String(hours).padStart(2, '0');
+          
+          const localTimeString = `${year}-${month}-${day} ${hoursFormatted}:${minutes} ${ampm}`;
+          element.textContent = localTimeString;
+        } catch (e) {
+          console.error('Error converting UTC time:', e);
+          element.textContent = utcString; // Fallback to original
+        }
+      }
+    });
+  }
+
+  // Run conversion on page load
+  convertUTCToLocal();
 });
 
 // Prevent space key in password and email fields
@@ -750,21 +755,29 @@ function updateCreatePreview() {
   const preview = document.getElementById('create-expiry-date-display');
   
   if (dateInput.value) {
+    // Parse datetime-local value (YYYY-MM-DDTHH:MM)
     const selected = new Date(dateInput.value);
     const now = new Date();
     
-    if (selected < now) {
-      preview.textContent = '⚠️ Cannot select past date';
-      preview.className = 'text-red-500 font-medium';
-      return;
-    }
-    
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    const formattedDate = selected.toLocaleDateString('en-US', options);
+    // Format the date and time
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+    const formattedDate = selected.toLocaleDateString('en-US', dateOptions);
+    const formattedTime = selected.toLocaleTimeString('en-US', timeOptions);
     
     const diffTime = selected - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    preview.textContent = `${formattedDate} (${diffDays} days from now)`;
+    const diffHours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (diffDays > 0) {
+      preview.textContent = `${formattedDate} at ${formattedTime} (${diffDays} days from now)`;
+    } else if (diffHours > 0) {
+      preview.textContent = `${formattedDate} at ${formattedTime} (${diffHours} hours from now)`;
+    } else if (diffTime > 0) {
+      preview.textContent = `${formattedDate} at ${formattedTime} (soon)`;
+    } else {
+      preview.textContent = `${formattedDate} at ${formattedTime}`;
+    }
     preview.className = 'text-red-400 font-medium';
   } else {
     preview.textContent = '-';
@@ -785,6 +798,9 @@ function handleCreateUser(event) {
   
   const form = document.getElementById('create-user-form');
   const formData = new FormData(form);
+  
+  // Add timezone offset
+  formData.append('timezone_offset', new Date().getTimezoneOffset());
   
   // Log form data for debugging
   console.log('=== Form Submission Data ===');
@@ -852,66 +868,39 @@ function handleCreateUser(event) {
   fetch('/admin/users/create', {
     method: 'POST',
     body: formData,
-    redirect: 'manual'  // Don't follow redirects automatically
   })
   .then(response => {
     console.log('Response status:', response.status);
-    console.log('Response type:', response.type);
-    
-    // Check if it's a redirect (302, 303, etc.)
-    if (response.type === 'opaqueredirect' || response.status === 302 || response.status === 303) {
-      // Assume success and reload
-      console.log('Redirect detected - reloading page');
-      closeCreateUserModal();
-      // Use flash message on reload
-      sessionStorage.setItem('flashMessage', JSON.stringify({
-        message: 'User created successfully',
-        category: 'success'
-      }));
-      window.location.reload();
-      return;
-    }
-    
-    // Try to parse as JSON or HTML
+    console.log('Response ok:', response.ok);
+
+    // Always try to parse as JSON first
     return response.text().then(text => {
       console.log('Response text (first 500 chars):', text.substring(0, 500));
       
-      // If response is empty, assume success
-      if (!text || text.trim() === '') {
-        console.log('Empty response - assuming success');
-        return { success: true };
-      }
-      
+      // Try to parse as JSON
       try {
         const data = JSON.parse(text);
         console.log('Parsed JSON:', data);
+        
+        // Check for error in JSON response
+        if (data.error) {
+          return { error: data.error, isError: true };
+        }
         return data;
       } catch (e) {
-        console.log('Not JSON, parsing as HTML');
-        // Not JSON, parse as HTML
+        // Not JSON - check if it's a success redirect (HTML page)
+        if (response.ok || response.redirected) {
+          // If we got HTML and response is OK, assume success
+          return { success: true };
+        }
+        // Parse HTML for error messages
         const parser = new DOMParser();
         const doc = parser.parseFromString(text, 'text/html');
-        
-        // Check for flash messages or alerts
-        const flashMessages = doc.querySelectorAll('.alert, .flash, .alert-error, .flash-error, [class*="error"]');
-        console.log('Found flash messages:', flashMessages.length);
-        
+        const flashMessages = doc.querySelectorAll('.alert, .flash, [class*="error"]');
         if (flashMessages.length > 0) {
           const errorText = Array.from(flashMessages).map(el => el.textContent.trim()).join('; ');
-          console.log('Error messages:', errorText);
-          if (errorText.toLowerCase().includes('error') || errorText.toLowerCase().includes('failed')) {
-            throw new Error(errorText || 'Failed to create user');
-          }
+          return { error: errorText || 'Failed to create user', isError: true };
         }
-        
-        // Check if it's the create_user page (means there was an error and we're back on the form)
-        if (text.includes('Create New User') && text.includes('form')) {
-          console.log('Redirected back to create form - likely validation error');
-          throw new Error('Validation error. Please check all required fields.');
-        }
-        
-        // If we got here, assume success
-        console.log('No errors found - assuming success');
         return { success: true };
       }
     });
@@ -926,7 +915,8 @@ function handleCreateUser(event) {
       window.location.reload();
     } else if (data && data.error) {
       if (window.notify) {
-        window.notify.error(data.error, '❌ Error');
+        const errorTitle = data.error.includes('Expiration date') ? 'Expiration Date Error' : '❌ Error';
+        window.notify.error(data.error, errorTitle);
       } else {
         alert(data.error);
       }
@@ -981,8 +971,11 @@ function handleCreateUser(event) {
 
 // Edit User Modal Functions
 function openEditModal(userId) {
-  // Fetch user data
-  fetch(`/admin/users/${userId}/edit`)
+  // Get timezone offset in minutes
+  const timezoneOffset = new Date().getTimezoneOffset();
+  
+  // Fetch user data with timezone offset
+  fetch(`/admin/users/${userId}/edit?timezone_offset=${timezoneOffset}`)
     .then(response => response.json())
     .then(data => {
       if (data.success) {
@@ -993,6 +986,10 @@ function openEditModal(userId) {
         document.getElementById('edit-email').value = user.email;
         document.getElementById('edit-password').value = '';
         document.getElementById('edit-user-type').value = user.user_type;
+        
+        if (user.subscription_start) {
+          document.getElementById('edit-subscription-start').value = user.subscription_start;
+        }
         
         if (user.expires_at) {
           document.getElementById('edit-expiration-date').value = user.expires_at;
@@ -1076,21 +1073,29 @@ function updateEditPreview() {
   const preview = document.getElementById('edit-expiry-date-display');
   
   if (dateInput.value) {
+    // Parse datetime-local value (YYYY-MM-DDTHH:MM)
     const selected = new Date(dateInput.value);
     const now = new Date();
     
-    if (selected < now) {
-      preview.textContent = '⚠️ Cannot select past date';
-      preview.className = 'text-red-500 font-medium';
-      return;
-    }
-    
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    const formattedDate = selected.toLocaleDateString('en-US', options);
+    // Format the date and time
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+    const formattedDate = selected.toLocaleDateString('en-US', dateOptions);
+    const formattedTime = selected.toLocaleTimeString('en-US', timeOptions);
     
     const diffTime = selected - now;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    preview.textContent = `${formattedDate} (${diffDays} days from now)`;
+    const diffHours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (diffDays > 0) {
+      preview.textContent = `${formattedDate} at ${formattedTime} (${diffDays} days from now)`;
+    } else if (diffHours > 0) {
+      preview.textContent = `${formattedDate} at ${formattedTime} (${diffHours} hours from now)`;
+    } else if (diffTime > 0) {
+      preview.textContent = `${formattedDate} at ${formattedTime} (soon)`;
+    } else {
+      preview.textContent = `${formattedDate} at ${formattedTime}`;
+    }
     preview.className = 'text-red-400 font-medium';
   } else {
     preview.textContent = '-';
@@ -1107,7 +1112,9 @@ document.getElementById('edit-user-form').addEventListener('submit', async funct
     email: document.getElementById('edit-email').value,
     password: document.getElementById('edit-password').value,
     user_type: document.getElementById('edit-user-type').value,
-    expiration_date: document.getElementById('edit-expiration-date').value
+    subscription_start: document.getElementById('edit-subscription-start').value,
+    expiration_date: document.getElementById('edit-expiration-date').value,
+    timezone_offset: new Date().getTimezoneOffset()
   };
   
   // Get button elements
@@ -1171,7 +1178,9 @@ document.getElementById('edit-user-form').addEventListener('submit', async funct
       }
       
       if (window.notify) {
-        notify.error(data.error || 'Failed to update user', 'Error');
+        const errorMsg = data.error || 'Failed to update user';
+        const errorTitle = errorMsg.includes('Expiration date') ? 'Expiration Date Error' : 'Error';
+        notify.error(errorMsg, errorTitle);
       } else {
         alert(data.error || 'Failed to update user');
       }

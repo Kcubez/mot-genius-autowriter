@@ -199,9 +199,12 @@ async function deleteContent(contentId) {
     ? window.getTranslation('Delete Content')
     : 'Delete Content';
 
+  const cancelText = window.getTranslation ? window.getTranslation('Cancel Delete') : 'Cancel';
+
   const confirmed = await modal.confirm(message, title, {
     type: 'danger',
     confirmText: confirmText,
+    cancelText: cancelText,
   });
 
   if (confirmed) {

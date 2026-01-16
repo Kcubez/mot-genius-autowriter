@@ -123,12 +123,19 @@
             {% endif %}
           </div>
 
+          <div class="form-field flex items-center">
+            <label class="flex items-center cursor-pointer">
+              {{ form.remember_me(class="w-4 h-4 mr-2 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 focus:ring-2") }}
+              <span class="text-sm lg:text-base text-white">Remember me</span>
+            </label>
+          </div>
+
           <div class="flex justify-center">
             <button
               id="loginButton"
               type="submit"
-              class="bg-red-600 hover:bg-red-700 text-white py-3 lg:py-3.5 px-8 lg:text-base rounded-lg font-semibold transition-all duration-200 shadow-lg"
-              style="width: 100%; max-width: 200px;"
+              class="bg-red-600 hover:bg-red-700 text-white py-3 lg:py-3.5 px-6 lg:px-8 lg:text-base rounded-lg font-semibold transition-all duration-200 shadow-lg whitespace-nowrap"
+              style="min-width: 200px; width: auto;"
             >
               <svg id="loginSpinner" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display: none; margin-right: 8px;">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -139,8 +146,8 @@
           </div>
           <style>
             @media (min-width: 1024px) {
-              button[type="submit"] {
-                max-width: 320px !important;
+              #loginButton {
+                min-width: 250px !important;
               }
             }
           </style>

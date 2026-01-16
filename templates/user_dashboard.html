@@ -405,6 +405,7 @@ head %}
       <!-- Loading Animation (inside content area) -->
       <div
         id="loading-overlay"
+        class="loading-overlay"
         style="
           display: none;
           position: absolute;
@@ -420,33 +421,63 @@ head %}
           z-index: 10;
         "
       >
-        <div class="loading-spinner-container">
-          <div class="loading-spinner"></div>
-          <div class="loading-spinner-ring"></div>
+        <div class="loading-indicator">
+          <div class="loading-circle-wrapper">
+            <svg class="loading-circle" viewBox="0 0 128 128">
+              <circle
+                class="loading-progress-bg"
+                cx="64"
+                cy="64"
+                r="54"
+                stroke-width="8"
+                fill="none"
+              ></circle>
+              <circle
+                id="loading-progress-ring"
+                class="loading-progress-ring"
+                cx="64"
+                cy="64"
+                r="54"
+                stroke-width="8"
+                fill="none"
+                stroke-linecap="round"
+              ></circle>
+              <defs>
+                <linearGradient id="loading-progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#dc2626" />
+                  <stop offset="50%" stop-color="#ef4444" />
+                  <stop offset="100%" stop-color="#dc2626" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="loading-circle-glow"></div>
+            <div class="loading-circle-content">
+              <svg
+                class="loading-zap-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span id="loading-progress-text">0%</span>
+            </div>
+          </div>
+          <div class="loading-message">
+            <p
+              id="loading-message-text"
+              class="loading-message-text"
+              data-translate="Generating your content..."
+            >
+              Generating your content...
+            </p>
+            <div class="loading-dots" aria-hidden="true">
+              <span style="animation-delay: 0ms"></span>
+              <span style="animation-delay: 150ms"></span>
+              <span style="animation-delay: 300ms"></span>
+            </div>
+          </div>
         </div>
-        <p
-          style="
-            color: white;
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-top: 2rem;
-            text-align: center;
-          "
-          data-translate="Generating your content..."
-        >
-          Generating your content...
-        </p>
-        <p
-          style="
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
-            text-align: center;
-          "
-          data-translate="Please wait a moment"
-        >
-          Please wait a moment
-        </p>
       </div>
 
       <textarea
