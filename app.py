@@ -1113,6 +1113,26 @@ def user_dashboard():
                          total_contents=total_contents,
                          is_expired=is_expired)
 
+@app.route('/voice-generator')
+@login_required
+@handle_db_errors
+def voice_generator():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    
+    # Block trial users from accessing voice generator
+    if current_user.user_type == 'trial':
+        flash('Voice Generator is only available for Normal Users. Please contact admin to upgrade your account.', 'error')
+        return redirect(url_for('user_dashboard'))
+    
+    recent_contents = Content.query.filter_by(user_id=current_user.id).order_by(Content.created_at.desc()).limit(3).all()
+    total_contents = Content.query.filter_by(user_id=current_user.id).count()
+    
+    return render_template('voice_generator.html', 
+                           recent_contents=recent_contents,
+                           total_contents=total_contents,
+                           current_user=current_user)
+
 @app.route('/contents/save', methods=['POST'])
 @login_required
 @handle_db_errors
@@ -1623,12 +1643,109 @@ Call to Action: {cta}
 Avoid/Don't include: {negative_constraints}{reference_section}
         """
         
+        # Check for voice audio file
+        audio_file = request.files.get('audio')
+        
         # Check for an uploaded image
         image_file = request.files.get('image')
         logging.info(f"Request files: {list(request.files.keys())}")
         logging.info(f"Image file: {image_file}, filename: {image_file.filename if image_file else 'None'}")
+        logging.info(f"Audio file: {audio_file}, filename: {audio_file.filename if audio_file else 'None'}")
         
-        if image_file and image_file.filename:
+        # Handle voice audio if present
+        if audio_file and audio_file.filename:
+            try:
+                import tempfile
+                import base64
+                
+                # Save audio file temporarily
+                temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix='.webm')
+                audio_file.save(temp_audio.name)
+                temp_audio.close()
+                
+                logging.info(f"Audio file saved to: {temp_audio.name}")
+                
+                # Use Gemini 2.5 Flash with audio support
+                voice_model = genai.GenerativeModel('gemini-2.5-flash')
+                genai.configure(api_key=current_user.api_key)
+                
+                # Read audio file as bytes for inline upload
+                with open(temp_audio.name, 'rb') as audio_file_handle:
+                    audio_bytes = audio_file_handle.read()
+                
+                logging.info(f"Audio file loaded: {len(audio_bytes)} bytes")
+                
+                # Create inline audio part instead of uploading file
+                audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+                
+                audio_part = {
+                    "inline_data": {
+                        "mime_type": "audio/webm",
+                        "data": audio_base64
+                    }
+                }
+                
+                logging.info("Audio prepared for inline submission")
+                
+                # Build the voice generation prompt
+                voice_prompt = f"""CRITICAL INSTRUCTION: You MUST listen carefully to the audio recording and create content based EXACTLY on what you hear in the audio. DO NOT generate generic or unrelated content.
+
+You are a 10 years experience social media content writer. Listen to the provided audio recording and analyze the EXACT content, tone, and context spoken in the audio. Generate a social media post that directly reflects what was said in the audio. Do not include any introductory phrases, explanations, or preambles. {language_instruction}{emoji_instruction}
+
+{style_example}
+
+IMPORTANT: Use the example above as a REFERENCE for style, format, structure, and tone. DO NOT copy the example content. Create NEW and ORIGINAL content based on the audio recording and requirements below, but follow the same writing style, formatting patterns, and engagement approach shown in the example.
+
+Page/Brand Name: {page_name}
+Purpose: {purpose}
+Writing Style: {writing_style}
+Target Audience: {audience}
+Word Count: Approximately {word_count} words
+Keywords to include: {keywords}
+Hashtags to include: {hashtags}
+Call to Action: {cta}
+Avoid/Don't include: {negative_constraints}
+
+IMPORTANT: The content MUST be based on the audio recording. Listen to what is actually said and create content about that specific topic. If the audio talks about food, write about food. If it talks about business, write about business. Match the audio content exactly."""
+                
+                # Build contents array with audio (inline data)
+                audio_contents = [voice_prompt, audio_part]
+                
+                # Also process image if present alongside audio
+                if image_file and image_file.filename:
+                    try:
+                        image_file.stream.seek(0)
+                        img = PIL.Image.open(image_file.stream)
+                        max_size = (1536, 1536)
+                        if img.size[0] > max_size[0] or img.size[1] > max_size[1]:
+                            img.thumbnail(max_size, PIL.Image.Resampling.LANCZOS)
+                        if img.mode != 'RGB':
+                            img = img.convert('RGB')
+                        audio_contents.append(img)
+                        logging.info("Image added alongside audio for voice generation.")
+                    except Exception as img_err:
+                        logging.warning(f"Could not process image for voice generation: {img_err}")
+                
+                logging.info("Sending voice prompt, audio, and image (if any) to Gemini native audio model.")
+                response = voice_model.generate_content(audio_contents)
+                
+                # Clean up temp file
+                try:
+                    os.unlink(temp_audio.name)
+                except:
+                    pass
+                
+            except Exception as audio_error:
+                logging.error(f"❌ AUDIO PROCESSING ERROR: {audio_error}")
+                logging.error(f"Error type: {type(audio_error).__name__}")
+                import traceback
+                logging.error(f"Full traceback: {traceback.format_exc()}")
+                
+                # Return error to user instead of falling back silently
+                return jsonify({
+                    'error': f'Audio processing failed: {str(audio_error)}. Please try recording again or check your audio format.'
+                }), 500
+        elif image_file and image_file.filename:
             # Check file size (limit to 4MB for better compatibility)
             image_file.stream.seek(0, 2)  # Seek to end
             file_size = image_file.stream.tell()

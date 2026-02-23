@@ -253,6 +253,17 @@
                 </svg>
                 <span class="text-sm font-medium" data-translate="Generator">Generator</span>
               </a>
+              {% if current_user.user_type == 'normal' %}
+              <a href="{{ url_for('voice_generator') }}" class="flex items-center space-x-2 px-4 py-2 rounded-full text-white transition-all duration-200 {{ 'bg-red-600 hover:bg-red-700' if request.endpoint == 'voice_generator' else 'hover:bg-red-600/20' }}">
+                <!-- Lucide Mic icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" x2="12" y1="19" y2="22"/>
+                </svg>
+                <span class="text-sm font-medium" data-translate="Generator With Voice">Generator With Voice</span>
+              </a>
+              {% endif %}
               <a href="{{ url_for('contents_dashboard') }}" class="flex items-center space-x-2 px-4 py-2 rounded-full text-white transition-all duration-200 {{ 'bg-red-600 hover:bg-red-700' if request.endpoint == 'contents_dashboard' else 'hover:bg-red-600/20' }}" style="pointer-events: auto; cursor: pointer;">
                 <!-- Lucide BarChart3 icon -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -450,6 +461,16 @@
                       </svg>
                       <span class="font-medium text-sm" data-translate="Generator">Generator</span>
                     </a>
+                    {% if current_user.user_type == 'normal' %}
+                    <a href="{{ url_for('voice_generator') }}" class="flex items-center space-x-2 px-4 py-2 rounded-full text-white transition-all duration-200 whitespace-nowrap {{ 'bg-red-600' if request.endpoint == 'voice_generator' else 'hover:bg-red-600/20' }}" onclick="toggleMobileMenu()">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" x2="12" y1="19" y2="22"/>
+                      </svg>
+                      <span class="font-medium text-sm" data-translate="Generator With Voice">Generator With Voice</span>
+                    </a>
+                    {% endif %}
                     <a href="{{ url_for('contents_dashboard') }}" class="flex items-center space-x-2 px-4 py-2 rounded-full text-white transition-all duration-200 whitespace-nowrap {{ 'bg-red-600' if request.endpoint == 'contents_dashboard' else 'hover:bg-red-600/20' }}" onclick="toggleMobileMenu()">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 3v18h18"/>

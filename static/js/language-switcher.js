@@ -1103,10 +1103,37 @@ function applyLanguage(language) {
   // Update document language attribute
   document.documentElement.lang = language === 'my' ? 'my' : 'en';
 
+  // Update voice generator button
+  const voiceGenerateBtn = document.getElementById('generate-voice-content-btn');
+  const voiceGenerateBtnText = document.getElementById('generate-voice-btn-text');
+
+  if (voiceGenerateBtn && voiceGenerateBtnText) {
+    // Check if button is currently disabled (generating)
+    const isGenerating = voiceGenerateBtn.disabled;
+
+    if (isGenerating) {
+      // Update to "Generating..." in the selected language
+      const generatingText =
+        translations['Generating...'] && translations['Generating...'][language]
+          ? translations['Generating...'][language]
+          : 'Generating...';
+      voiceGenerateBtnText.textContent = generatingText;
+    } else {
+      // Update to "Generate Content" in the selected language
+      const generateText =
+        translations['Generate Content'] && translations['Generate Content'][language]
+          ? translations['Generate Content'][language]
+          : 'Generate Content';
+      voiceGenerateBtnText.textContent = generateText;
+    }
+  }
+
   // Dispatch custom event for countdown timer and other components
-  window.dispatchEvent(new CustomEvent('languageChanged', { 
-    detail: { language: language } 
-  }));
+  window.dispatchEvent(
+    new CustomEvent('languageChanged', {
+      detail: { language: language },
+    })
+  );
 
   // Update custom select dropdowns
   updateCustomSelects(language);
@@ -1145,25 +1172,27 @@ window.applyLanguage = applyLanguage;
 window.translations = translations;
 
 // Helper function to change language and notify all components
-window.changeLanguage = function(language) {
+window.changeLanguage = function (language) {
   // Update global language variable
   currentLanguage = language;
   window.currentLanguage = language;
-  
+
   // Save to localStorage
   localStorage.setItem('language', language);
-  
+
   // Apply language changes
   applyLanguage(language);
-  
+
   // Dispatch custom event to notify other components (like expiration countdown)
-  window.dispatchEvent(new CustomEvent('languageChanged', {
-    detail: { language: language }
-  }));
+  window.dispatchEvent(
+    new CustomEvent('languageChanged', {
+      detail: { language: language },
+    })
+  );
 };
 
 // Helper function to get translation
-window.getTranslation = function(key, lang) {
+window.getTranslation = function (key, lang) {
   const language = lang || currentLanguage || 'my';
   if (translations[key] && translations[key][language]) {
     return translations[key][language];

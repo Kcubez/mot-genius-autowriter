@@ -1,0 +1,687 @@
+/* Voice Generator Specific Styles - Matching Dashboard Theme */
+
+/* Header styling to match dashboard */
+.voice-header {
+  background-color: #000000;
+  border: 1px solid #450a0a;
+  border-radius: 1rem;
+  padding: 2rem;
+}
+
+/* Form container styling to match dashboard */
+.voice-form-container {
+  background-color: #000000;
+  border: 1px solid #450a0a;
+  border-radius: 1rem;
+  padding: 0;
+}
+
+.voice-form-container .p-6 {
+  padding: 2rem;
+}
+
+.voice-form-container .px-6 {
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.voice-form-container .pb-6 {
+  padding-bottom: 2rem;
+}
+
+/* Image upload area - matching dashboard */
+.image-upload-container:hover {
+  border-color: #ef4444 !important;
+  background-color: #0a0a0a !important;
+}
+
+/* Generated content section - matching dashboard */
+.generated-content-area {
+  background-color: #000000;
+  border: 2px dashed #450a0a;
+  border-radius: 0.5rem;
+  padding: 4rem 2rem;
+  min-height: 300px;
+  text-align: center;
+  color: #9ca3af;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: #ef4444;
+}
+
+.empty-state-text {
+  color: #ef4444;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state-subtext {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* Recording pulse animation */
+.recording-pulse {
+    width: 12px;
+    height: 12px;
+    background-color: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+    
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* Processing spinner animation */
+.processing-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #3b82f6;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Voice input section styling */
+.voice-input-section {
+    background-color: #1a1a1a;
+    border: 1px solid #374151;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+/* Camera modal styling */
+#camera-modal {
+    backdrop-filter: blur(8px);
+}
+
+#camera-video {
+    max-height: 400px;
+    object-fit: cover;
+}
+
+/* Image preview styling */
+#image-preview img {
+    transition: all 0.3s ease;
+}
+
+#image-preview img:hover {
+    transform: scale(1.02);
+}
+
+/* Recording button states */
+#voice-record-btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+#voice-record-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+}
+
+#voice-record-btn.recording {
+    background: linear-gradient(45deg, #6b7280, #4b5563);
+    animation: recordingGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes recordingGlow {
+    from {
+        box-shadow: 0 4px 20px rgba(107, 114, 128, 0.4);
+    }
+    to {
+        box-shadow: 0 4px 30px rgba(107, 114, 128, 0.6);
+    }
+}
+
+/* Generate button enhancement */
+#generate-voice-content-btn {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    transition: all 0.3s ease;
+}
+
+#generate-voice-content-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(220, 38, 38, 0.4);
+}
+
+#generate-voice-content-btn:disabled {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    cursor: not-allowed;
+}
+
+/* Content area styling */
+#voice-content-area {
+    transition: all 0.3s ease;
+    resize: vertical;
+    min-height: 200px;
+}
+
+#voice-content-area:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    border-color: #dc2626;
+}
+
+/* Voice text area styling */
+#voice-text {
+    transition: all 0.3s ease;
+    min-height: 100px;
+}
+
+#voice-text:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    border-color: #dc2626;
+}
+
+/* Status indicators */
+#recording-status, #processing-status {
+    background: rgba(31, 31, 31, 0.8);
+    border-radius: 8px;
+    padding: 12px 16px;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Camera controls */
+.camera-controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+/* Image upload area */
+.image-upload-area {
+    border: 2px dashed rgba(107, 114, 128, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.image-upload-area:hover {
+    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+/* Remove image button */
+#remove-image {
+    transition: all 0.2s ease;
+}
+
+#remove-image:hover {
+    background-color: #b91c1c;
+    transform: scale(1.1);
+}
+
+/* Ensure all inputs have proper box-sizing and width */
+.voice-form-container input[type="text"],
+.voice-form-container select,
+.voice-form-container textarea {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+}
+
+/* Override any conflicting styles */
+#page-name,
+#voice-purpose,
+#language,
+#word-count {
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    /* Container padding adjustments */
+    .voice-header {
+        padding: 1.5rem 1rem;
+    }
+    
+    .voice-form-container {
+        padding: 0;
+    }
+    
+    .voice-form-container .p-6 {
+        padding: 1.5rem 1rem;
+    }
+    
+    .voice-form-container .px-6 {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .voice-form-container .pb-6 {
+        padding-bottom: 1.5rem;
+    }
+    
+    /* Generated content section padding on mobile */
+    .voice-form-container[style*="position: relative"] {
+        padding: 1.5rem 1rem !important;
+    }
+    
+    /* Header section - change to column layout */
+    .voice-form-container .p-6 .flex.justify-between.items-center {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
+    }
+    
+    .voice-form-container .p-6 .flex.justify-between.items-center h2 {
+        font-size: 1.5rem !important;
+    }
+    
+    .voice-form-container .p-6 .flex.justify-between.items-center .text-sm {
+        font-size: 0.875rem !important;
+    }
+    
+    /* Voice Input section - change to column layout */
+    .mb-6.p-6.bg-gray-800\/50 .flex.items-center.justify-between {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+    
+    .mb-6.p-6.bg-gray-800\/50 .flex.items-center.justify-between > div:first-child {
+        width: 100%;
+    }
+    
+    .mb-6.p-6.bg-gray-800\/50 .flex.items-center.space-x-4 {
+        width: 100%;
+        justify-content: flex-start !important;
+        margin-left: 0 !important;
+    }
+    
+    /* Form inputs - ensure proper width and consistent styling */
+    input[type="text"],
+    select,
+    textarea {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+        border-radius: 0.75rem !important;
+    }
+    
+    /* Ensure labels are consistent */
+    label {
+        font-size: 0.875rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Grid layout - stack on mobile */
+    .grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Camera modal */
+    #camera-modal .bg-gray-800 {
+        margin: 16px;
+        max-width: calc(100vw - 32px);
+    }
+    
+    #camera-video {
+        max-height: 300px;
+    }
+    
+    .camera-controls {
+        flex-direction: column;
+    }
+    
+    .camera-controls button {
+        width: 100%;
+    }
+    
+    /* Voice recording button */
+    #voice-record-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 0.75rem 1rem !important;
+        font-size: 0.875rem !important;
+    }
+    
+    /* Generate button */
+    #generate-voice-content-btn {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 0.875rem !important;
+    }
+    
+    /* Copy and Save buttons */
+    .copy-btn,
+    .save-btn {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 0.875rem !important;
+    }
+    
+    /* Button container */
+    .mt-6.flex {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+    
+    /* Image upload area */
+    .image-upload-container {
+        padding: 1.5rem 1rem !important;
+    }
+    
+    /* Generated content area */
+    .generated-content-area {
+        padding: 2rem 1rem !important;
+        min-height: 200px !important;
+    }
+    
+    /* Voice content textarea */
+    #voice-content-area {
+        padding: 0.75rem !important;
+        font-size: 0.875rem !important;
+    }
+}
+
+/* Toast notification styling */
+.toast {
+    max-width: 400px;
+    word-wrap: break-word;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Loading states */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(31, 31, 31, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    z-index: 10;
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(239, 68, 68, 0.3);
+    border-top: 3px solid #ef4444;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Form section styling */
+.form-section {
+    background: rgba(31, 31, 31, 0.6);
+    border: 1px solid rgba(107, 114, 128, 0.2);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+}
+
+.form-section:hover {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(31, 31, 31, 0.8);
+}
+
+/* Section headers */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-description {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+/* Button group styling */
+.button-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.button-group button {
+    flex: 1;
+    min-width: 120px;
+}
+
+@media (max-width: 640px) {
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .button-group button {
+        width: 100%;
+        min-width: auto;
+    }
+}
+
+/* Enhanced focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid #dc2626;
+    outline-offset: 2px;
+}
+
+/* Disabled states for buttons */
+button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    background-color: #4b5563 !important;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    background-color: #374151 !important;
+    color: #9ca3af !important;
+}
+
+/* Smooth transitions for all interactive elements */
+button, input, textarea, select {
+    transition: all 0.2s ease;
+}
+
+/* Error states */
+.error-state {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.error-message {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Success states */
+.success-state {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
+}
+
+.success-message {
+    color: #10b981;
+    font-size: 0.875rem;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Copy and Save Button Styles */
+.copy-btn:not([style*="display: none"]),
+.save-btn:not([style*="display: none"]) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.copy-btn svg,
+.save-btn svg {
+  flex-shrink: 0 !important;
+  margin-right: 0.5rem !important;
+}
+
+.copy-btn span,
+.save-btn span {
+  line-height: 1 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+/* Copy and Save Button Hover Effects */
+.copy-btn:hover,
+.save-btn:hover {
+  background-color: #ef4444 !important;
+  border-color: #ef4444 !important;
+}
+
+.copy-btn:hover .copy-icon,
+.save-btn:hover .save-icon {
+  color: #ffffff !important;
+}
+
+.copy-btn:hover .copy-text,
+.save-btn:hover .save-text {
+  color: #ffffff !important;
+}
+
+/* Disabled state */
+.save-btn:disabled:hover {
+  background-color: #ffffff !important;
+  border-color: #ef4444 !important;
+}
+
+.save-btn:disabled:hover .save-icon,
+.save-btn:disabled:hover .save-text {
+  color: #ef4444 !important;
+}
+
+/* Loading Animation Overlay for Voice Generator */
+#voice-loading-overlay {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Red Spinner Animation */
+.loading-spinner-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.loading-spinner {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 8px solid transparent;
+  border-top-color: #ef4444;
+  border-right-color: #ef4444;
+  border-radius: 50%;
+  animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+}
+
+.loading-spinner-ring {
+  position: absolute;
+  width: 80%;
+  height: 80%;
+  top: 10%;
+  left: 10%;
+  border: 6px solid transparent;
+  border-bottom-color: #dc2626;
+  border-left-color: #dc2626;
+  border-radius: 50%;
+  animation: spin 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite reverse;
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.3);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+#voice-loading-overlay p {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
