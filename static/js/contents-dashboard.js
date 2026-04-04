@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (confirmed) {
         try {
           const response = await fetch(`/contents/${contentId}/delete`, {
-            method: 'POST',
+            method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
             },
