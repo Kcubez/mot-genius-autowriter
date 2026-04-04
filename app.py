@@ -410,9 +410,15 @@ else:
     client = None
 
 # Global error handlers
+from werkzeug.exceptions import HTTPException
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handle uncaught exceptions"""
+    # Pass through HTTP errors
+    if isinstance(e, HTTPException):
+        return e
+        
     # Check if it's a database connection error
     if 'server closed the connection unexpectedly' in str(e) or 'OperationalError' in str(type(e).__name__):
         logging.error(f"Database connection error: {e}")
