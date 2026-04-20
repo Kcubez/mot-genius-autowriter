@@ -1727,7 +1727,7 @@ IMPORTANT: The content MUST be based on the audio recording. Listen to what is a
                 
                 logging.info("Sending voice prompt, audio, and image (if any) to Gemini native audio model.")
                 response = user_client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.1-flash-lite-preview',
                     contents=audio_contents
                 )
                 
@@ -1779,7 +1779,7 @@ IMPORTANT: The content MUST be based on the audio recording. Listen to what is a
                 contents = [enhanced_prompt, img]
                 logging.info("Sending prompt and image to Gemini.")
                 response = user_client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.1-flash-lite-preview',
                     contents=contents
                 )
             except Exception as img_error:
@@ -1787,14 +1787,14 @@ IMPORTANT: The content MUST be based on the audio recording. Listen to what is a
                 # Fall back to text-only if image processing fails
                 logging.info("Falling back to text-only prompt due to image error.")
                 response = user_client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.1-flash-lite-preview',
                     contents=enhanced_prompt
                 )
         else:
             # If no image, proceed with text only
             logging.info("Sending text-only prompt to Gemini.")
             response = user_client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-3.1-flash-lite-preview',
                 contents=enhanced_prompt
             )
 
