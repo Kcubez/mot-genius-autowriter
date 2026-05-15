@@ -48,6 +48,24 @@ def format_datetime_iso(dt):
     return dt.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
 
 
+def get_usage_value(usage_metadata, *field_names):
+    """Read a token usage value from Gemini metadata across SDK variants."""
+    if not usage_metadata:
+        return 0
+
+    for field_name in field_names:
+        value = getattr(usage_metadata, field_name, None)
+        if value is None and isinstance(usage_metadata, dict):
+            value = usage_metadata.get(field_name)
+        if value is not None:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
+    return 0
+
+
 import re
 
 def add_facebook_trademark(content):
@@ -153,6 +171,10 @@ class User(UserMixin, db.Model):
     last_failed_login = db.Column(db.DateTime, nullable=True)
     locked_until = db.Column(db.DateTime, nullable=True)
     content_count = db.Column(db.Integer, default=0, nullable=False)
+    generation_count = db.Column(db.Integer, default=0, nullable=False)
+    prompt_tokens_used = db.Column(db.Integer, default=0, nullable=False)
+    output_tokens_used = db.Column(db.Integer, default=0, nullable=False)
+    total_tokens_used = db.Column(db.Integer, default=0, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=True)
     subscription_start = db.Column(db.DateTime, nullable=True)  # Subscription start date
     user_type = db.Column(db.String(20), default='normal', nullable=True)
@@ -310,6 +332,36 @@ class Content(db.Model):
     published = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+def record_generation_usage(user, response):
+    """Accumulate Gemini token usage for admin reporting."""
+    usage_metadata = getattr(response, 'usage_metadata', None)
+
+    prompt_tokens = get_usage_value(usage_metadata, 'prompt_token_count', 'prompt_tokens')
+    output_tokens = get_usage_value(
+        usage_metadata,
+        'candidates_token_count',
+        'candidate_token_count',
+        'completion_tokens',
+        'output_tokens'
+    )
+    total_tokens = get_usage_value(usage_metadata, 'total_token_count', 'total_tokens')
+
+    if total_tokens == 0:
+        total_tokens = prompt_tokens + output_tokens
+
+    user.generation_count = (user.generation_count or 0) + 1
+    user.prompt_tokens_used = (user.prompt_tokens_used or 0) + prompt_tokens
+    user.output_tokens_used = (user.output_tokens_used or 0) + output_tokens
+    user.total_tokens_used = (user.total_tokens_used or 0) + total_tokens
+    db.session.commit()
+
+    return {
+        'prompt_tokens': prompt_tokens,
+        'output_tokens': output_tokens,
+        'total_tokens': total_tokens,
+    }
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -612,15 +664,32 @@ def admin_dashboard():
     users = query.order_by(User.created_at.desc()).paginate(
         page=page, per_page=10, error_out=False
     )
+
+    user_ids = [user.id for user in users.items]
+    content_counts = {}
+    if user_ids:
+        content_counts = dict(
+            db.session.query(Content.user_id, db.func.count(Content.id))
+            .filter(Content.user_id.in_(user_ids))
+            .group_by(Content.user_id)
+            .all()
+        )
     
     total_users = User.query.count()
     total_contents = Content.query.count()
+    active_users = User.query.filter_by(is_active=True).count()
+    total_generations = db.session.query(db.func.coalesce(db.func.sum(User.generation_count), 0)).scalar() or 0
+    total_tokens_used = db.session.query(db.func.coalesce(db.func.sum(User.total_tokens_used), 0)).scalar() or 0
     recent_contents = Content.query.order_by(Content.created_at.desc()).limit(3).all()
     
     return render_template('admin_dashboard.html', 
                          users=users, 
                          total_users=total_users,
                          total_contents=total_contents,
+                         active_users=active_users,
+                         total_generations=total_generations,
+                         total_tokens_used=total_tokens_used,
+                         content_counts=content_counts,
                          recent_contents=recent_contents,
                          search=search,
                          filter_status=filter_status)
@@ -1802,7 +1871,8 @@ IMPORTANT: The content MUST be based on the audio recording. Listen to what is a
         if hasattr(response, 'text') and response.text:
             # Apply Facebook trademark processing to generated content
             processed_content = add_facebook_trademark(response.text)
-            return jsonify({'content': processed_content})
+            usage = record_generation_usage(current_user, response)
+            return jsonify({'content': processed_content, 'usage': usage})
         else:
             logging.error("Gemini response has no text content")
             return jsonify({'error': 'Failed to generate content. Please try again.'}), 500
@@ -2025,6 +2095,26 @@ def migrate_database():
                 conn.execute(db.text("ALTER TABLE \"user\" ADD COLUMN content_count INTEGER DEFAULT 0 NOT NULL"))
                 conn.commit()
                 logging.info("content_count column added successfully")
+
+            usage_columns = [
+                ('generation_count', 'INTEGER DEFAULT 0 NOT NULL'),
+                ('prompt_tokens_used', 'INTEGER DEFAULT 0 NOT NULL'),
+                ('output_tokens_used', 'INTEGER DEFAULT 0 NOT NULL'),
+                ('total_tokens_used', 'INTEGER DEFAULT 0 NOT NULL'),
+            ]
+
+            for column_name, column_definition in usage_columns:
+                result = conn.execute(db.text("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name='user' AND column_name=:column_name
+                """), {'column_name': column_name})
+
+                if not result.fetchone():
+                    logging.info(f"Adding {column_name} column to user table...")
+                    conn.execute(db.text(f"ALTER TABLE \"user\" ADD COLUMN {column_name} {column_definition}"))
+                    conn.commit()
+                    logging.info(f"{column_name} column added successfully")
             
             # Add expires_at column to user table
             result = conn.execute(db.text("""

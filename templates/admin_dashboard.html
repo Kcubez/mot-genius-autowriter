@@ -19,7 +19,7 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
     </div>
 
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
       <div class="p-6 rounded-lg shadow-lg border border-red-600/30" style="background-color: #1F1F1F;">
         <div class="flex items-center">
           <div class="p-3 rounded-full bg-red-600/20">
@@ -80,7 +80,32 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-300">Active Users</p>
-            <p class="text-2xl font-bold text-white">{{ users.items|selectattr('is_active')|list|length }}</p>
+            <p class="text-2xl font-bold text-white">{{ active_users }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-6 rounded-lg shadow-lg border border-red-600/30" style="background-color: #1F1F1F;">
+        <div class="flex items-center">
+          <div class="p-3 rounded-full bg-red-600/20">
+            <svg
+              class="w-8 h-8 text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 20h10M9 16h6M5 12h14M4 8h16M6 4h12"
+              ></path>
+            </svg>
+          </div>
+          <div class="ml-4">
+            <p class="text-sm font-medium text-gray-300">Total Tokens Used</p>
+            <p class="text-2xl font-bold text-white">{{ "{:,}".format(total_tokens_used) }}</p>
+            <p class="text-xs text-gray-400">{{ "{:,}".format(total_generations) }} generations</p>
           </div>
         </div>
       </div>
@@ -113,6 +138,11 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
                 class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
               >
                 User Type
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+              >
+                Usage
               </th>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
@@ -172,6 +202,20 @@ render_search_controls %} {% block title %}Admin Dashboard - Genius AutoWriter{%
                   >Normal</span
                 >
                 {% endif %}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-white">
+                  {{ content_counts.get(user.id, 0) }} saved contents
+                </div>
+                <div class="text-xs text-gray-400">
+                  {{ user.generation_count or 0 }} generated
+                </div>
+                <div class="text-xs text-red-300 mt-1">
+                  {{ "{:,}".format(user.total_tokens_used or 0) }} tokens
+                </div>
+                <div class="text-xs text-gray-500">
+                  In {{ "{:,}".format(user.prompt_tokens_used or 0) }} / Out {{ "{:,}".format(user.output_tokens_used or 0) }}
+                </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 {% if user.is_active %}
